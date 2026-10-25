@@ -127,10 +127,45 @@ const Precheck = (function () {
         return out;
     }
 
+    // What was measured, pass or fail. Rendered as chips above any findings so
+    // the numbers are visible even when there is nothing wrong.
+    function summarize(profile, job) {
+        const chips = [];
+
+        const sheet = SHEET_INCHES[job.outputSize];
+        if (sheet) {
+            const max = profile.max_sheet_in;
+            chips.push({
+                label: `Sheet ${inches(sheet.w)} x ${inches(sheet.h)}"`,
+                state: !max ? "none" : (fitsIn(sheet, max) ? "ok" : "bad"),
+            });
+        }
+
+        const dpis = (job.logos || []).map(l => l.dpi).filter(d => d != null);
+        if (dpis.length) {
+            const min = Math.min(...dpis);
+            const floor = profile.min_dpi;
+            const rec = profile.recommended_dpi;
+            let state = "none";
+            if (floor || rec) {
+                state = (floor && min < floor) ? "bad"
+                      : (rec && min < rec) ? "warn" : "ok";
+            }
+            chips.push({
+                label: dpis.length > 1
+                    ? `Lowest logo ${min} DPI`
+                    : `Logo ${min} DPI`,
+                state: state,
+            });
+        }
+
+        return chips;
+    }
+
     // profile: one entry from PRINT_SERVICES
     // job: { outputSize, logoInches: {w,h}, logos: [{name, dpi, neededW, neededH}] }
     function run(profile, job) {
-        if (!profile) return { findings: [], blocked: false, notes: [] };
+        if (!profile) return { findings: [], summary: [], blocked: false, notes: [] };
 
         const findings = [
             sheetSizeFinding(profile, job),
@@ -142,6 +177,7 @@ const Precheck = (function () {
 
         return {
             findings: findings,
+            summary: summarize(profile, job),
             blocked: findings.some(f => f.level === "block"),
             notes: profile.notes || [],
         };

@@ -21,6 +21,7 @@ const bleedGroup = document.getElementById("bleed-group");
 const bleedNote = document.getElementById("bleed-note");
 const serviceSelect = document.getElementById("print_service");
 const serviceFindings = document.getElementById("service-findings");
+const serviceSummary = document.getElementById("service-summary");
 const serviceNotes = document.getElementById("service-notes");
 const outlineToggles = document.getElementById("outline-toggles");
 const viewport = document.getElementById("preview-viewport");
@@ -431,6 +432,13 @@ function currentPrecheck() {
 function renderServicePanel() {
     const profile = currentProfile();
     const result = currentPrecheck();
+
+    const chips = result.summary.map(c =>
+        `<span class="chk ${c.state}">${c.label}</span>`).join("");
+    // Shown whenever there is something to report on, so a clean sheet reads as
+    // "checked and fine" rather than as nothing having happened.
+    serviceSummary.innerHTML = chips;
+    serviceSummary.hidden = result.summary.length === 0;
 
     serviceFindings.innerHTML = result.findings.map(f => `
         <div class="finding ${f.level}">
