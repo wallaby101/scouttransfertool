@@ -22,6 +22,7 @@ const bleedNote = document.getElementById("bleed-note");
 const serviceSelect = document.getElementById("print_service");
 const serviceFindings = document.getElementById("service-findings");
 const serviceSummary = document.getElementById("service-summary");
+const serviceFormat = document.getElementById("service-format");
 const serviceNotes = document.getElementById("service-notes");
 const outlineToggles = document.getElementById("outline-toggles");
 const viewport = document.getElementById("preview-viewport");
@@ -50,6 +51,11 @@ let nextLogoId = 0;
 let logoQueue = [];
 // Each entry: { id, file, objectUrl, editorState: {scale, offsetX, offsetY, textOverlay},
 //               quantity, validation, cachedMeta, variableData }
+
+// The selected bleed in whole pixels, the unit the renderer works in.
+function currentBleedPx() {
+    return Place.pyRound(parseFloat(bleedSelect.value) * SHEET_CANVAS.dpi);
+}
 
 function isPacked() {
     return layoutMode.value === "packed";
@@ -450,6 +456,12 @@ function renderServicePanel() {
         </div>`).join("");
     serviceFindings.hidden = result.findings.length === 0;
 
+    const pref = result.prefersFormat;
+    serviceFormat.innerHTML = pref ? `<strong>${pref.label}</strong> ${pref.reason}` : "";
+    serviceFormat.hidden = !pref;
+    downloadZipBtn.classList.toggle("preferred", !!pref && pref.format === "zip");
+    downloadPdfBtn.classList.toggle("preferred", !!pref && pref.format === "pdf");
+
     const notes = (profile && profile.notes) || [];
     serviceNotes.querySelector("ul").innerHTML =
         notes.map(n => `<li>${n}</li>`).join("");
@@ -642,8 +654,8 @@ async function generatePreview() {
         const [oLogo, oBleed] = isPacked()
             ? [null, null]
             : await Promise.all([
-                AppRender.overlayURL(ls, size, "logo"),
-                AppRender.overlayURL(ls, size, "bleed"),
+                AppRender.overlayURL(ls, size, "logo", currentBleedPx()),
+                AppRender.overlayURL(ls, size, "bleed", currentBleedPx()),
             ]);
         if (token !== previewToken) {
             for (const u of urls) URL.revokeObjectURL(u);
@@ -692,8 +704,8 @@ async function loadTemplate() {
         ? [await AppRender.templateURL(ls, size, "packed", gapInches()), null, null]
         : await Promise.all([
             AppRender.templateURL(ls, size, "jig"),
-            AppRender.overlayURL(ls, size, "logo"),
-            AppRender.overlayURL(ls, size, "bleed"),
+            AppRender.overlayURL(ls, size, "logo", currentBleedPx()),
+            AppRender.overlayURL(ls, size, "bleed", currentBleedPx()),
         ]);
     if (!tplUrl) return;
     if (token !== previewToken) {
@@ -759,6 +771,7 @@ bleedSelect.addEventListener("change", () => {
     renderQueue();
     updateDownloadBtn();
     if (logoQueue.length > 0) schedulePreview();
+    else loadTemplate();
 });
 
 layoutMode.addEventListener("change", () => {

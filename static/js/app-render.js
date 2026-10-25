@@ -140,11 +140,11 @@ const AppRender = (function () {
     }
 
     /** Slot outline overlay, cached per template/size/layer. */
-    async function overlayURL(logoSize, outputSize, layer) {
-        const key = `${logoSize}|${outputSize}|${layer}`;
+    async function overlayURL(logoSize, outputSize, layer, bleedPx) {
+        const key = `${logoSize}|${outputSize}|${layer}|${bleedPx}`;
         if (overlayCache.has(key)) return overlayCache.get(key);
 
-        const o = SheetRender.renderSlotOverlay(logoSize, outputSize, layer);
+        const o = SheetRender.renderSlotOverlay(logoSize, outputSize, layer, bleedPx);
         const url = await downscaleToURL(o.px, o.w, o.h, false);
         overlayCache.set(key, url);
         return url;

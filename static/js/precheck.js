@@ -165,7 +165,10 @@ const Precheck = (function () {
     // profile: one entry from PRINT_SERVICES
     // job: { outputSize, logoInches: {w,h}, logos: [{name, dpi, neededW, neededH}] }
     function run(profile, job) {
-        if (!profile) return { findings: [], summary: [], blocked: false, notes: [] };
+        if (!profile) {
+            return { findings: [], summary: [], prefersFormat: null,
+                     blocked: false, notes: [] };
+        }
 
         const findings = [
             sheetSizeFinding(profile, job),
@@ -178,6 +181,7 @@ const Precheck = (function () {
         return {
             findings: findings,
             summary: summarize(profile, job),
+            prefersFormat: profile.prefers_format || null,
             blocked: findings.some(f => f.level === "block"),
             notes: profile.notes || [],
         };

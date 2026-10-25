@@ -27,7 +27,12 @@ const PRINT_SERVICES = {
             "Soft edges that fade away to nothing will not print. Avoid drop shadows and feathered edges.",
             "Text must be outlined. Ours already is — every sheet leaves here as pixels, not live text.",
             "Art time is not included for UltraColor MAX, unlike their other products."
-        ]
+        ],
+        "prefers_format": {
+            "format": "zip",
+            "label": "Download PNG(s)",
+            "reason": "Their uploader does not read the resolution of an image inside a PDF. The same sheet uploads as 300 DPI from the ZIP, and draws a \"less than 150 dots per inch\" warning as a PDF — even though both are the identical 300 DPI sheet. Send the ZIP."
+        }
     },
     "te-ultracolor-pro": {
         "name": "Transfer Express — UltraColor Pro",
@@ -41,7 +46,12 @@ const PRINT_SERVICES = {
         "notes": [
             "Sheet size limits for this product are not recorded here — check their product page before a big run.",
             "Art time is included, so flag anything you want them to fix in the order notes."
-        ]
+        ],
+        "prefers_format": {
+            "format": "zip",
+            "label": "Download PNG(s)",
+            "reason": "Their uploader does not read the resolution of an image inside a PDF. The same sheet uploads as 300 DPI from the ZIP, and draws a \"less than 150 dots per inch\" warning as a PDF — even though both are the identical 300 DPI sheet. Send the ZIP."
+        }
     },
     "te-screen-print": {
         "name": "Transfer Express — Goof Proof / Elasti Prints (screen print)",
@@ -56,7 +66,12 @@ const PRINT_SERVICES = {
             "DPI is not critical for screen printing; they enhance low-resolution art.",
             "Show-through thickness minimum is 0.04\".",
             "Art time is included."
-        ]
+        ],
+        "prefers_format": {
+            "format": "zip",
+            "label": "Download PNG(s)",
+            "reason": "Their uploader does not read the resolution of an image inside a PDF. The same sheet uploads as 300 DPI from the ZIP, and draws a \"less than 150 dots per inch\" warning as a PDF — even though both are the identical 300 DPI sheet. Send the ZIP."
+        }
     },
     "custom": {
         "name": "Custom — no service selected",
@@ -69,11 +84,13 @@ const PRINT_SERVICES = {
         "color_mode": null,
         "notes": [
             "No service picked, so only general print-quality advice applies. Pick your service to check against its real limits."
-        ]
+        ],
+        "prefers_format": null
     }
 };
 
 const PRINT_SERVICE_SOURCES = {
     "te-guidelines": "https://blog.transferexpress.com/art-guidelines/ (read 2026-10-25)",
-    "te-ucmax": "https://www.transferexpress.com/heat-press-transfers/ultracolor-max -- Production Details (read 2026-10-25)"
+    "te-ucmax": "https://www.transferexpress.com/heat-press-transfers/ultracolor-max -- Production Details (read 2026-10-25)",
+    "te-pdf-dpi": "Observed on a real order, 2026-10-25: the same 22x22 sheet passed Transfer Express's DPI check as a PNG and failed it as a PDF. Our PDF is a 6600x6600 image on a 1584pt (22in) page = 300 DPI, and Pillow writes the same geometry, so the file is not at fault."
 };

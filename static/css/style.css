@@ -1110,3 +1110,21 @@ input[type="text"]:focus {
 }
 
 .chk.bad::before { content: "\00d7"; }
+
+#service-format[hidden] {
+    display: none;
+}
+
+#service-format {
+    opacity: 0.85;
+}
+
+#service-format strong {
+    color: #4ade80;
+}
+
+/* The format this service actually reads correctly. */
+.btn-download.preferred {
+    outline: 2px solid #4ade80;
+    outline-offset: 1px;
+}

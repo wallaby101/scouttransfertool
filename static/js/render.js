@@ -167,7 +167,10 @@ const SheetRender = (function () {
 
     // Port of generate_slot_overlay(). These are drawn at alpha 200, which is
     // written straight into the buffer rather than going through compositing.
-    function renderSlotOverlay(logoSize, outputSize, layer) {
+    // bleedPx is how far the print reaches beyond the label. Left undefined it
+    // falls back to the slot opening, which is the maximum bleed -- the old
+    // behaviour, kept so existing parity fixtures still compare.
+    function renderSlotOverlay(logoSize, outputSize, layer, bleedPx) {
         const tmpl = SHEET_TEMPLATES[logoSize];
         const w = SHEET_CANVAS.width;
         const h = SHEET_CANVAS.height_22x24;
@@ -177,11 +180,17 @@ const SheetRender = (function () {
         const green = [0, 200, 0, 200];
 
         if (layer === 'bleed' || layer === 'both') {
+            // The printed area is the label plus the bleed on every side, so at
+            // 0.00" this lands exactly on the green logo outline.
+            const bp = bleedPx === undefined || bleedPx === null
+                ? Math.floor((tmpl.slot_w - tmpl.logo_w) / 2)
+                : bleedPx;
+            const bw = tmpl.logo_w + bp * 2;
+            const bh = tmpl.logo_h + bp * 2;
             for (const [cx, cy] of tmpl.slot_centers) {
-                const x0 = cx - Math.floor(tmpl.slot_w / 2);
-                const y0 = cy - Math.floor(tmpl.slot_h / 2);
-                rectOutline(px, w, h, x0, y0,
-                            x0 + tmpl.slot_w - 1, y0 + tmpl.slot_h - 1, lw, red);
+                const x0 = cx - Math.floor(bw / 2);
+                const y0 = cy - Math.floor(bh / 2);
+                rectOutline(px, w, h, x0, y0, x0 + bw - 1, y0 + bh - 1, lw, red);
             }
         }
         if (layer === 'logo' || layer === 'both') {
