@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCOUT - DTF Transfer Sheet Generator</title>
+    <link rel="stylesheet" href="static/css/fonts.css">
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1f2937">
+    <link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+    <div class="app">
+        <!-- Left panel: controls -->
+        <aside class="controls">
+            <div class="brand">
+                <span class="brand-name">SCOUT</span>
+                <span class="brand-sub">DTF Transfer Sheet Generator</span>
+            </div>
+
+            <form id="upload-form" enctype="multipart/form-data">
+                <section class="panel-section">
+                    <div class="form-group">
+                        <label for="project_name">Project Name</label>
+                        <input type="text" id="project_name" name="project_name" placeholder="e.g. Spring 2026 Run" autocomplete="off" required>
+                    </div>
+                </section>
+
+                <section class="panel-section">
+                    <div class="form-group">
+                        <label for="logo_size">Logo Size</label>
+                        <select id="logo_size" name="logo_size">
+                            <option value="3x3">3 x 3" (30 per sheet)</option>
+                            <option value="3.25x1.75">3.25 x 1.75" (50 per sheet)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label id="logo-label">Logos (3x3" PNG or JPEG)</label>
+                        <div class="upload-area" id="upload-area">
+                            <input type="file" id="logo" accept=".png,.jpg,.jpeg" multiple>
+                            <div class="upload-content" id="upload-content">
+                                <span class="upload-icon">+</span>
+                                <span>Click or drag to add logos</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="logo-queue" class="logo-queue"></div>
+                    <div id="slot-counter" class="slot-counter">0 / 30 slots used</div>
+                </section>
+
+                <section class="panel-section" id="variable-data-section" hidden>
+                    <div class="form-group">
+                        <label>Variable Data</label>
+                        <div id="variable-data-entries"></div>
+                    </div>
+                </section>
+
+                <section class="panel-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bleed">Bleed</label>
+                            <select id="bleed" name="bleed">
+                                <option value="0.00">0.00"</option>
+                                <option value="0.01">0.01"</option>
+                                <option value="0.02">0.02"</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="output_size">Sheet Size</label>
+                            <select id="output_size" name="output_size">
+                                <option value="22x24">22 x 24"</option>
+                                <option value="22x22">22 x 22"</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+            </form>
+
+            <div class="panel-section">
+                <label class="toggle-label">
+                    <input type="checkbox" id="show-logo-outline" checked>
+                    <span>Show logo size outline</span>
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" id="show-bleed-outline" checked>
+                    <span>Show bleed outline</span>
+                </label>
+            </div>
+
+            <div class="controls-spacer"></div>
+
+            <div class="download-group">
+                <button id="download-zip-btn" class="btn btn-download" disabled>Download ZIP</button>
+                <button id="download-pdf-btn" class="btn btn-download" disabled>Download PDF</button>
+            </div>
+
+            <div id="status" hidden></div>
+        </aside>
+
+        <!-- Right panel: preview -->
+        <main class="preview-panel">
+            <div class="preview-toolbar">
+                <span class="preview-title">Preview</span>
+                <span class="zoom-controls">
+                    <button id="zoom-out" class="btn-icon" title="Zoom out">-</button>
+                    <span id="zoom-level">Fit</span>
+                    <button id="zoom-in" class="btn-icon" title="Zoom in">+</button>
+                    <button id="zoom-fit" class="btn-icon" title="Fit to view">Fit</button>
+                </span>
+            </div>
+            <div class="preview-viewport" id="preview-viewport">
+                <div id="preview-transform"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Logo Editor Modal -->
+    <div class="modal-overlay" id="logo-editor-overlay">
+        <div class="modal" id="logo-editor-modal">
+            <div class="modal-header">
+                <span class="modal-title">Logo Placement</span>
+                <button type="button" class="btn-icon modal-close" id="editor-close">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="modal-body">
+                    <canvas id="editor-canvas"></canvas>
+                </div>
+                <div class="modal-controls">
+                    <div class="editor-scale-row">
+                        <label for="editor-scale">Scale</label>
+                        <input type="range" id="editor-scale" min="50" max="150" value="100" step="1">
+                        <span id="editor-scale-label">100%</span>
+                    </div>
+                    <div class="editor-scale-row editor-rotate-row">
+                        <label for="editor-rotate">Rotate</label>
+                        <input type="range" id="editor-rotate" min="-180" max="180" value="0" step="1">
+                        <span id="editor-rotate-label">0&deg;</span>
+                        <span class="align-group">
+                            <button type="button" class="btn-icon rotate-step" data-rotate="-90" title="Rotate 90&deg; counter-clockwise">&#8634;</button>
+                            <button type="button" class="btn-icon rotate-step" data-rotate="90" title="Rotate 90&deg; clockwise">&#8635;</button>
+                        </span>
+                    </div>
+                    <div class="editor-align-row">
+                        <span class="align-group">
+                            <button type="button" class="btn-icon align-btn" data-align="left" title="Align left">&#9664;</button>
+                            <button type="button" class="btn-icon align-btn" data-align="center-h" title="Center horizontal">&#9679;</button>
+                            <button type="button" class="btn-icon align-btn" data-align="right" title="Align right">&#9654;</button>
+                        </span>
+                        <span class="align-group">
+                            <button type="button" class="btn-icon align-btn" data-align="top" title="Align top">&#9650;</button>
+                            <button type="button" class="btn-icon align-btn" data-align="center-v" title="Center vertical">&#9679;</button>
+                            <button type="button" class="btn-icon align-btn" data-align="bottom" title="Align bottom">&#9660;</button>
+                        </span>
+                    </div>
+                    <div class="editor-bg-row">
+                        <label>Background</label>
+                        <span class="align-group">
+                            <button type="button" class="btn-icon bg-btn active" data-bg="transparent" title="Transparent background">Transparent</button>
+                            <button type="button" class="btn-icon bg-btn" data-bg="color" title="Solid color background">Color</button>
+                        </span>
+                        <input type="color" id="editor-bg-color" value="#ffffff" title="Background color">
+                    </div>
+                    <div class="editor-text-section" id="editor-text-section">
+                        <button type="button" class="btn btn-secondary btn-add-text" id="editor-add-text">+ Add Text</button>
+                        <div class="editor-text-controls" id="editor-text-controls" hidden>
+                            <div class="editor-text-row">
+                                <label for="editor-font-family">Font</label>
+                                <select id="editor-font-family">
+                                    <option value="Helvetica">Helvetica</option>
+                                    <option value="Arial">Arial</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Courier">Courier</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Verdana">Verdana</option>
+                                </select>
+                            </div>
+                            <div class="editor-text-row">
+                                <label for="editor-font-size">Size</label>
+                                <input type="number" id="editor-font-size" value="60" min="12" max="300" step="1">
+                                <span class="editor-text-unit">px</span>
+                            </div>
+                            <div class="editor-text-row">
+                                <label for="editor-font-weight">Weight</label>
+                                <select id="editor-font-weight">
+                                    <option value="regular">Regular</option>
+                                    <option value="bold">Bold</option>
+                                </select>
+                            </div>
+                            <div class="editor-text-row">
+                                <label for="editor-text-color">Color</label>
+                                <input type="color" id="editor-text-color" value="#FFFFFF">
+                            </div>
+                            <div class="editor-text-row">
+                                <label>Align</label>
+                                <span class="align-group">
+                                    <button type="button" class="btn-icon text-align-btn" data-text-align="left" title="Left">L</button>
+                                    <button type="button" class="btn-icon text-align-btn active" data-text-align="center" title="Center">C</button>
+                                    <button type="button" class="btn-icon text-align-btn" data-text-align="right" title="Right">R</button>
+                                </span>
+                            </div>
+                            <div class="editor-text-row">
+                                <label>Pos</label>
+                                <span class="align-group">
+                                    <button type="button" class="btn-icon text-pos-btn" data-text-pos="left" title="Position left">&#9664;</button>
+                                    <button type="button" class="btn-icon text-pos-btn" data-text-pos="center-h" title="Position center horizontal">&#9679;</button>
+                                    <button type="button" class="btn-icon text-pos-btn" data-text-pos="right" title="Position right">&#9654;</button>
+                                </span>
+                                <span class="align-group">
+                                    <button type="button" class="btn-icon text-pos-btn" data-text-pos="top" title="Position top">&#9650;</button>
+                                    <button type="button" class="btn-icon text-pos-btn" data-text-pos="center-v" title="Position center vertical">&#9679;</button>
+                                    <button type="button" class="btn-icon text-pos-btn" data-text-pos="bottom" title="Position bottom">&#9660;</button>
+                                </span>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-remove-text" id="editor-remove-text">Remove Text</button>
+                        </div>
+                    </div>
+                    <div class="controls-spacer"></div>
+                    <div class="editor-actions">
+                        <button type="button" class="btn btn-secondary" id="editor-reset">Reset</button>
+                        <button type="button" class="btn btn-secondary" id="editor-cancel">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="editor-save">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Renderer: geometry, resampling, placement, text, assembly. -->
+    <script src="static/js/templates.js"></script>
+    <script src="static/js/resample.js"></script>
+    <script src="static/js/place.js"></script>
+    <script src="static/js/text.js"></script>
+    <script src="static/js/render.js"></script>
+    <!-- Export formats. -->
+    <script src="static/js/export-png.js"></script>
+    <script src="static/js/export-zip.js"></script>
+    <script src="static/js/export-pdf.js"></script>
+    <!-- UI. -->
+    <script src="static/js/app-render.js"></script>
+    <script src="static/js/validate.js"></script>
+    <script src="static/js/main.js"></script>
+    <script src="static/js/pwa.js"></script>
+</body>
+</html>

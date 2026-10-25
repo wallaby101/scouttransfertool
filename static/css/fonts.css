@@ -1,0 +1,113 @@
+/* AUTO-GENERATED — DO NOT EDIT BY HAND.
+ * Source: assets/fonts/fonts.json
+ * Regenerate: python tools/gen_fonts.py
+ *
+ * These families shadow any same-named system font on purpose: the browser must
+ * use the same files Pillow does, so a sheet renders identically everywhere.
+ * See assets/fonts/NOTICE.md for the substitutions and their licences.
+ */
+
+/* Helvetica -> Arimo. Arimo is metric-compatible with Helvetica and Arial. */
+@font-face {
+    font-family: "Helvetica";
+    font-weight: 400;
+    font-style: normal;
+    src: url("../../assets/fonts/Arimo-Variable.ttf") format("truetype");
+    font-display: block;
+}
+@font-face {
+    font-family: "Helvetica";
+    font-weight: 700;
+    font-style: normal;
+    src: url("../../assets/fonts/Arimo-Variable.ttf") format("truetype");
+    font-display: block;
+}
+
+/* Arial -> Arimo. Same face as Helvetica; Arial and Helvetica are near-identical designs. */
+@font-face {
+    font-family: "Arial";
+    font-weight: 400;
+    font-style: normal;
+    src: url("../../assets/fonts/Arimo-Variable.ttf") format("truetype");
+    font-display: block;
+}
+@font-face {
+    font-family: "Arial";
+    font-weight: 700;
+    font-style: normal;
+    src: url("../../assets/fonts/Arimo-Variable.ttf") format("truetype");
+    font-display: block;
+}
+
+/* Times New Roman -> Tinos. Tinos is metric-compatible with Times New Roman. */
+@font-face {
+    font-family: "Times New Roman";
+    font-weight: 400;
+    font-style: normal;
+    src: url("../../assets/fonts/Tinos-Regular.ttf") format("truetype");
+    font-display: block;
+}
+@font-face {
+    font-family: "Times New Roman";
+    font-weight: 700;
+    font-style: normal;
+    src: url("../../assets/fonts/Tinos-Bold.ttf") format("truetype");
+    font-display: block;
+}
+
+/* Courier -> Cousine. Cousine is metric-compatible with Courier New. */
+@font-face {
+    font-family: "Courier";
+    font-weight: 400;
+    font-style: normal;
+    src: url("../../assets/fonts/Cousine-Regular.ttf") format("truetype");
+    font-display: block;
+}
+@font-face {
+    font-family: "Courier";
+    font-weight: 700;
+    font-style: normal;
+    src: url("../../assets/fonts/Cousine-Bold.ttf") format("truetype");
+    font-display: block;
+}
+
+/* Georgia -> Gelasio. Gelasio is metric-compatible with Georgia. */
+@font-face {
+    font-family: "Georgia";
+    font-weight: 400;
+    font-style: normal;
+    src: url("../../assets/fonts/Gelasio-Variable.ttf") format("truetype");
+    font-display: block;
+}
+@font-face {
+    font-family: "Georgia";
+    font-weight: 700;
+    font-style: normal;
+    src: url("../../assets/fonts/Gelasio-Variable.ttf") format("truetype");
+    font-display: block;
+}
+
+/* Verdana -> Lato. Lato is a humanist sans stand-in; it is NOT metric-compatible with Verdana, so line lengths differ slightly from the old macOS rendering. */
+@font-face {
+    font-family: "Verdana";
+    font-weight: 400;
+    font-style: normal;
+    src: url("../../assets/fonts/Lato-Regular.ttf") format("truetype");
+    font-display: block;
+}
+@font-face {
+    font-family: "Verdana";
+    font-weight: 700;
+    font-style: normal;
+    src: url("../../assets/fonts/Lato-Bold.ttf") format("truetype");
+    font-display: block;
+}
+
+/* DM Sans: interface only. Interface font only. Never used for sheet output, so core/generator.py does not load it — it reads 'families' only. Bundled so the app needs no network at startup and works offline with its real typeface. */
+@font-face {
+    font-family: "DM Sans";
+    font-weight: 400 700;
+    font-style: normal;
+    src: url("../../assets/fonts/DMSans-Variable.ttf") format("truetype");
+    font-display: swap;
+}
