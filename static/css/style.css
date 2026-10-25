@@ -1128,3 +1128,29 @@ input[type="text"]:focus {
     outline: 2px solid #4ade80;
     outline-offset: 1px;
 }
+
+/* ---- Help link ---- */
+.brand-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.brand-help {
+    flex: none;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    padding: 2px 8px;
+}
+
+.brand-help:hover,
+.brand-help:focus-visible {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.5);
+}
