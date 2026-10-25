@@ -134,6 +134,11 @@ async function addLogo(file) {
         validation: null,
         cachedMeta: null,
         variableData: null,
+        // "Same text on every label" mode: sameTextValue holds the one value the
+        // user typed, and variableData is kept filled with copies of it, so the
+        // rest of the app needs no special case for it.
+        sameTextForAll: false,
+        sameTextValue: "",
         originalImage: null,
     };
     logoQueue.push(entry);
@@ -189,6 +194,7 @@ function updateQuantity(id, qty) {
     if (!entry) return;
     qty = Math.max(1, qty);
     entry.quantity = qty;
+    if (entry.sameTextForAll) applySameText(entry);
     renderQueue();
     updateSlotCounter();
     updateDownloadBtn();
@@ -1272,27 +1278,49 @@ function parseVariableInput(text) {
     return values;
 }
 
-function getVarDataStatusHTML(entry) {
-    const have = entry.variableData ? entry.variableData.length : 0;
+// Escape text going into innerHTML. Without this a value containing
+// "</textarea>" or an angle bracket breaks the panel's markup.
+function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, c => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Fill every slot with the single value, so the count always equals the
+// quantity and nothing downstream needs to know about this mode.
+function applySameText(entry) {
+    const value = (entry.sameTextValue || "").trim();
+    entry.variableData = value ? Array(entry.quantity).fill(value) : null;
+}
+
+// One source of truth for the status line, used by the initial render and by
+// the live update while typing.
+function varDataStatus(entry) {
     const need = entry.quantity;
-    const match = have === need;
-    const statusClass = match ? "green" : "red";
-    const statusMsg = match
-        ? `${have}/${need} values`
-        : `${have}/${need} values — need ${need - have > 0 ? (need - have) + " more" : "remove " + (have - need)}`;
-    return `<span class="var-data-status ${statusClass}">${statusMsg}</span>`;
+    if (entry.sameTextForAll) {
+        const has = Boolean((entry.sameTextValue || "").trim());
+        return {
+            ok: has,
+            msg: has ? `Printed on all ${need} label${need === 1 ? "" : "s"}`
+                     : "Type the text above",
+        };
+    }
+    const have = entry.variableData ? entry.variableData.length : 0;
+    if (have === need) return { ok: true, msg: `${have}/${need} values` };
+    const fix = need - have > 0 ? `need ${need - have} more` : `remove ${have - need}`;
+    return { ok: false, msg: `${have}/${need} values — ${fix}` };
+}
+
+function getVarDataStatusHTML(entry) {
+    const { ok, msg } = varDataStatus(entry);
+    return `<span class="var-data-status ${ok ? "green" : "red"}">${escapeHTML(msg)}</span>`;
 }
 
 function updateVarDataStatus(entry) {
     const statusEl = variableDataEntries.querySelector(`.var-data-actions[data-id="${entry.id}"] .var-data-status`);
     if (statusEl) {
-        const have = entry.variableData ? entry.variableData.length : 0;
-        const need = entry.quantity;
-        const match = have === need;
-        statusEl.className = `var-data-status ${match ? "green" : "red"}`;
-        statusEl.textContent = match
-            ? `${have}/${need} values`
-            : `${have}/${need} values — need ${need - have > 0 ? (need - have) + " more" : "remove " + (have - need)}`;
+        const { ok, msg } = varDataStatus(entry);
+        statusEl.className = `var-data-status ${ok ? "green" : "red"}`;
+        statusEl.textContent = msg;
     }
 }
 
@@ -1307,16 +1335,24 @@ function renderVariableDataSection() {
 
     variableDataEntries.innerHTML = entriesWithText.map(entry => {
         const need = entry.quantity;
-        const textVal = entry.variableData ? entry.variableData.join(", ") : "";
+        const same = Boolean(entry.sameTextForAll);
+        const textVal = same
+            ? (entry.sameTextValue || "")
+            : (entry.variableData ? entry.variableData.join(", ") : "");
+        const note = same ? `(same text on all ${need})` : `(${need} values needed)`;
 
         return `<div class="var-data-entry" data-id="${entry.id}">
             <div class="var-data-header">
                 <img class="queue-thumb" src="${entry.objectUrl}" alt="">
-                <span class="var-data-label">${entry.file.name} (${need} values needed)</span>
+                <span class="var-data-label">${escapeHTML(entry.file.name)} ${note}</span>
             </div>
-            <textarea class="var-data-input" rows="3"
-                placeholder="Acme Corp, Smith &amp; Sons, Johnson LLC"
-                data-id="${entry.id}">${textVal}</textarea>
+            <label class="var-data-same">
+                <input type="checkbox" class="same-text-toggle" data-id="${entry.id}" ${same ? "checked" : ""}>
+                Same text on every label
+            </label>
+            <textarea class="var-data-input" rows="${same ? 2 : 3}"
+                placeholder="${same ? "Medium" : "Acme Corp, Smith &amp; Sons, Johnson LLC"}"
+                data-id="${entry.id}">${escapeHTML(textVal)}</textarea>
             <div class="var-data-actions" data-id="${entry.id}">
                 <div class="var-data-buttons">
                     <label class="btn btn-secondary btn-csv-upload">
@@ -1337,7 +1373,13 @@ variableDataEntries.addEventListener("input", (e) => {
         const id = parseInt(e.target.dataset.id);
         const entry = getEntry(id);
         if (entry) {
-            entry.variableData = parseVariableInput(e.target.value);
+            if (entry.sameTextForAll) {
+                // Taken literally, so the value may contain commas ("Smith, Jr.").
+                entry.sameTextValue = e.target.value;
+                applySameText(entry);
+            } else {
+                entry.variableData = parseVariableInput(e.target.value);
+            }
             updateVarDataStatus(entry);
             updateDownloadBtn();
         }
@@ -1352,8 +1394,10 @@ variableDataEntries.addEventListener("click", (e) => {
         const entry = getEntry(id);
         if (!entry || !entry.variableData) return;
 
+        // In same-text mode the quantity drives the value count, not the other
+        // way round, so Apply must leave the quantity alone.
         const count = entry.variableData.length;
-        if (count > 0 && count !== entry.quantity) {
+        if (!entry.sameTextForAll && count > 0 && count !== entry.quantity) {
             entry.quantity = Math.max(1, count);
             updateSlotCounter();
         }
@@ -1363,6 +1407,29 @@ variableDataEntries.addEventListener("click", (e) => {
         updateDownloadBtn();
         if (canGenerate()) schedulePreview();
     }
+});
+
+// "Same text on every label" toggle
+variableDataEntries.addEventListener("change", (e) => {
+    if (!e.target.classList.contains("same-text-toggle")) return;
+    const entry = getEntry(parseInt(e.target.dataset.id));
+    if (!entry) return;
+
+    entry.sameTextForAll = e.target.checked;
+    if (entry.sameTextForAll) {
+        // Carry whatever is already typed over as the single value.
+        if (!entry.sameTextValue && entry.variableData && entry.variableData.length) {
+            entry.sameTextValue = entry.variableData[0];
+        }
+        applySameText(entry);
+    } else {
+        // Going back to per-label values, seeded with the one they had.
+        entry.variableData = entry.sameTextValue ? [entry.sameTextValue] : null;
+    }
+
+    renderVariableDataSection();
+    updateDownloadBtn();
+    if (canGenerate()) schedulePreview();
 });
 
 // CSV upload
@@ -1377,6 +1444,8 @@ variableDataEntries.addEventListener("change", (e) => {
         reader.onload = () => {
             const text = reader.result;
             const lines = text.split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0);
+            // A CSV is per-label data, so it takes the entry out of same-text mode.
+            entry.sameTextForAll = false;
             entry.variableData = lines;
             // Auto-adjust quantity to match CSV row count
             if (lines.length > 0 && lines.length !== entry.quantity) {

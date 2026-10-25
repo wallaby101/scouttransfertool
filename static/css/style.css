@@ -934,3 +934,19 @@ input[type="text"]:focus {
 #pwa-update #pwa-update-dismiss:hover {
     color: #f9fafb;
 }
+
+/* ---- "Same text on every label" toggle in the Variable Data panel ---- */
+.var-data-same {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 6px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.var-data-same input {
+    margin: 0;
+    cursor: pointer;
+}
