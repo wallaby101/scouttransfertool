@@ -201,7 +201,7 @@ const AppRender = (function () {
 
         const render = sheetRenderer(options);
 
-        if (kind === 'zip') {
+        if (kind === 'zip' || kind === 'files') {
             const files = [];
             await render(options, async (sheet, index, total) => {
                 if (onProgress) onProgress(index, total);
@@ -211,6 +211,8 @@ const AppRender = (function () {
                                                  SHEET_CANVAS.dpi),
                 });
             });
+
+            if (kind === 'files') return { files };
 
             // A single sheet needs no container. Handing over the PNG itself
             // saves the user unzipping it, and it is the file the print service

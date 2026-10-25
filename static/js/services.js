@@ -7,7 +7,7 @@
 
 const PRINT_SERVICES = {
     "te-ultracolor-max": {
-        "name": "Transfer Express — UltraColor MAX (DTF)",
+        "name": "Transfer Express (UltraColor Max)",
         "source": "te-ucmax",
         "min_dpi": 150,
         "recommended_dpi": 300,
@@ -27,45 +27,6 @@ const PRINT_SERVICES = {
             "Soft edges that fade away to nothing will not print. Avoid drop shadows and feathered edges.",
             "Text must be outlined. Ours already is — every sheet leaves here as pixels, not live text.",
             "Art time is not included for UltraColor MAX, unlike their other products."
-        ],
-        "prefers_format": {
-            "format": "zip",
-            "label": "Download PNG(s)",
-            "reason": "Their uploader does not read the resolution of an image inside a PDF. The same sheet uploads as 300 DPI from the ZIP, and draws a \"less than 150 dots per inch\" warning as a PDF — even though both are the identical 300 DPI sheet. Send the ZIP."
-        }
-    },
-    "te-ultracolor-pro": {
-        "name": "Transfer Express — UltraColor Pro",
-        "source": "te-guidelines",
-        "min_dpi": 150,
-        "recommended_dpi": 300,
-        "min_stroke_in": 0.014,
-        "max_sheet_in": null,
-        "max_sheet_confirmed": false,
-        "color_mode": "CMYK",
-        "notes": [
-            "Sheet size limits for this product are not recorded here — check their product page before a big run.",
-            "Art time is included, so flag anything you want them to fix in the order notes."
-        ],
-        "prefers_format": {
-            "format": "zip",
-            "label": "Download PNG(s)",
-            "reason": "Their uploader does not read the resolution of an image inside a PDF. The same sheet uploads as 300 DPI from the ZIP, and draws a \"less than 150 dots per inch\" warning as a PDF — even though both are the identical 300 DPI sheet. Send the ZIP."
-        }
-    },
-    "te-screen-print": {
-        "name": "Transfer Express — Goof Proof / Elasti Prints (screen print)",
-        "source": "te-guidelines",
-        "min_dpi": null,
-        "recommended_dpi": null,
-        "min_stroke_in": 0.012,
-        "max_sheet_in": null,
-        "max_sheet_confirmed": false,
-        "color_mode": "spot",
-        "notes": [
-            "DPI is not critical for screen printing; they enhance low-resolution art.",
-            "Show-through thickness minimum is 0.04\".",
-            "Art time is included."
         ],
         "prefers_format": {
             "format": "zip",

@@ -489,6 +489,11 @@ function updateSlotCounter() {
     slotCounterEl.classList.toggle("at-capacity", total > 0);
 }
 
+// Chrome and Edge only, and only over HTTPS -- which is how the app is served.
+function canSaveToFolder() {
+    return typeof window.showDirectoryPicker === "function" && window.isSecureContext;
+}
+
 function sheetCount() {
     const perSheet = getMaxSlots();
     if (!perSheet) return 0;
@@ -497,9 +502,10 @@ function sheetCount() {
 
 function updateDownloadBtn() {
     renderServicePanel();
-    downloadZipBtn.textContent = sheetCount() > 1
-        ? "Download PNGs (ZIP)"
-        : "Download PNG";
+    const sheets = sheetCount();
+    downloadZipBtn.textContent = sheets <= 1 ? "Download PNG"
+        : canSaveToFolder() ? "Save PNGs to Folder"
+        : "Download PNGs (ZIP)";
     const ok = canGenerate();
     downloadZipBtn.disabled = !ok;
     downloadPdfBtn.disabled = !ok;
@@ -892,6 +898,20 @@ async function runExport(btn, kind) {
         return;
     }
 
+    // The folder picker needs the click that is still in hand, so it has to be
+    // asked for before any rendering is awaited.
+    let directory = null;
+    if (kind === "zip" && sheetCount() > 1 && canSaveToFolder()) {
+        try {
+            directory = await window.showDirectoryPicker({
+                id: "heatpress-sheets", mode: "readwrite", startIn: "downloads",
+            });
+        } catch (err) {
+            if (err && err.name === "AbortError") return;   // picker dismissed
+            directory = null;                                // fall back to the zip
+        }
+    }
+
     const originalLabel = btn.textContent;
     downloadZipBtn.disabled = true;
     downloadPdfBtn.disabled = true;
@@ -899,6 +919,21 @@ async function runExport(btn, kind) {
 
     try {
         const options = currentRenderOptions();
+        if (directory) {
+            const { files } = await AppRender.exportSheets(
+                options, "files", name,
+                (index, total) => {
+                    btn.textContent = `Rendering sheet ${index + 1} of ${total}...`;
+                });
+            for (const f of files) {
+                const handle = await directory.getFileHandle(f.name, { create: true });
+                const writable = await handle.createWritable();
+                await writable.write(f.blob);
+                await writable.close();
+            }
+            showStatus(`Saved ${files.length} sheets to ${directory.name}`, "success");
+            return;
+        }
         const { blob, filename } = await AppRender.exportSheets(
             options, kind, name,
             (index, total) => {
