@@ -107,6 +107,18 @@
                 </label>
             </div>
 
+            <div class="panel-section" id="service-section">
+                <div class="form-group">
+                    <label for="print_service">Print Service</label>
+                    <select id="print_service" name="print_service"></select>
+                </div>
+                <div id="service-findings" hidden></div>
+                <details id="service-notes" hidden>
+                    <summary>What this service expects</summary>
+                    <ul></ul>
+                </details>
+            </div>
+
             <div class="controls-spacer"></div>
 
             <div class="download-group">
@@ -258,6 +270,8 @@
     <!-- UI. -->
     <script src="static/js/app-render.js"></script>
     <script src="static/js/validate.js"></script>
+    <script src="static/js/services.js"></script>
+    <script src="static/js/precheck.js"></script>
     <script src="static/js/main.js"></script>
     <script src="static/js/pwa.js"></script>
 </body>

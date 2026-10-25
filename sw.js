@@ -8,7 +8,7 @@
 // asks, which is what keeps an update from swapping the app out mid-job. See
 // static/js/pwa.js for the prompt.
 
-const CACHE = 'heatpress-7da659c6756b';
+const CACHE = 'heatpress-9b4da19d2ffa';
 const ASSETS = [
     'assets/fonts/Arimo-Variable.ttf',
     'assets/fonts/Cousine-Bold.ttf',
@@ -31,9 +31,11 @@ const ASSETS = [
     'static/js/export-zip.js',
     'static/js/main.js',
     'static/js/place.js',
+    'static/js/precheck.js',
     'static/js/pwa.js',
     'static/js/render.js',
     'static/js/resample.js',
+    'static/js/services.js',
     'static/js/templates.js',
     'static/js/text.js',
     'static/js/validate.js',

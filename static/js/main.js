@@ -19,6 +19,9 @@ const gapGroup = document.getElementById("gap-group");
 const gapFit = document.getElementById("gap-fit");
 const bleedGroup = document.getElementById("bleed-group");
 const bleedNote = document.getElementById("bleed-note");
+const serviceSelect = document.getElementById("print_service");
+const serviceFindings = document.getElementById("service-findings");
+const serviceNotes = document.getElementById("service-notes");
 const outlineToggles = document.getElementById("outline-toggles");
 const viewport = document.getElementById("preview-viewport");
 const previewTransform = document.getElementById("preview-transform");
@@ -140,6 +143,7 @@ function canGenerate() {
         }
         return false;
     })) return false;
+    if (typeof Precheck !== "undefined" && currentPrecheck().blocked) return false;
     return true;
 }
 
@@ -371,6 +375,81 @@ function getValidationSummary(entry) {
     return issues.join(" ");
 }
 
+// ---- Print-service check ----
+//
+// The sheet is checked against the chosen service's published limits before it
+// can be downloaded. This exists because of a real order: a 22 x 24" sheet was
+// uploaded to Transfer Express, silently scaled to 91.7% to fit their 22 x 22"
+// maximum, and every 3" label printed at 2.75". Nothing in either tool said so.
+
+const SERVICE_PREF_KEY = "heatpress.printService";
+
+function loadServicePref() {
+    try { return localStorage.getItem(SERVICE_PREF_KEY); } catch (e) { return null; }
+}
+
+function saveServicePref(id) {
+    try { localStorage.setItem(SERVICE_PREF_KEY, id); } catch (e) { /* private mode */ }
+}
+
+function populateServices() {
+    serviceSelect.innerHTML = Object.entries(PRINT_SERVICES)
+        .map(([id, p]) => `<option value="${id}">${p.name}</option>`).join("");
+    const saved = loadServicePref();
+    serviceSelect.value = (saved && PRINT_SERVICES[saved]) ? saved : "custom";
+}
+
+function currentProfile() {
+    return PRINT_SERVICES[serviceSelect.value] || null;
+}
+
+// The job as the checker wants it: sheet size in inches, label size in inches,
+// and the real print resolution of every logo in the queue.
+function precheckJob() {
+    const tmpl = SHEET_TEMPLATES[logoSizeSelect.value];
+    return {
+        outputSize: outputSize.value,
+        logoInches: tmpl
+            ? { w: tmpl.logo_w / SHEET_CANVAS.dpi, h: tmpl.logo_h / SHEET_CANVAS.dpi }
+            : null,
+        logos: logoQueue.map(entry => {
+            const res = logoPrintResolution(entry);
+            return {
+                name: entry.file.name,
+                dpi: res ? res.dpi : null,
+                neededW: res ? res.neededW : null,
+                neededH: res ? res.neededH : null,
+            };
+        }),
+    };
+}
+
+function currentPrecheck() {
+    return Precheck.run(currentProfile(), precheckJob());
+}
+
+function renderServicePanel() {
+    const profile = currentProfile();
+    const result = currentPrecheck();
+
+    serviceFindings.innerHTML = result.findings.map(f => `
+        <div class="finding ${f.level}">
+            <div class="finding-title">${f.title}</div>
+            <div class="finding-detail">${f.detail}</div>
+            ${f.fix ? `<button type="button" class="btn-fix"
+                data-setting="${f.fix.setting}" data-value="${f.fix.value}"
+                >${f.fix.label}</button>` : ""}
+        </div>`).join("");
+    serviceFindings.hidden = result.findings.length === 0;
+
+    const notes = (profile && profile.notes) || [];
+    serviceNotes.querySelector("ul").innerHTML =
+        notes.map(n => `<li>${n}</li>`).join("");
+    serviceNotes.hidden = notes.length === 0;
+
+    return result;
+}
+
 function updateSlotCounter() {
     const total = getTotalQuantity();
     const perSheet = getMaxSlots();
@@ -391,6 +470,7 @@ function updateSlotCounter() {
 }
 
 function updateDownloadBtn() {
+    renderServicePanel();
     const ok = canGenerate();
     downloadZipBtn.disabled = !ok;
     downloadPdfBtn.disabled = !ok;
@@ -658,6 +738,7 @@ async function loadTemplate() {
 
 // ---- Setting changes trigger auto-preview ----
 outputSize.addEventListener("change", () => {
+    updateDownloadBtn();
     if (logoQueue.length > 0) {
         schedulePreview();
     } else {
@@ -668,6 +749,7 @@ outputSize.addEventListener("change", () => {
 bleedSelect.addEventListener("change", () => {
     // Bleed enlarges the placed area, so it changes the print resolution.
     renderQueue();
+    updateDownloadBtn();
     if (logoQueue.length > 0) schedulePreview();
 });
 
@@ -730,8 +812,26 @@ logoSizeSelect.addEventListener("change", () => {
     }
 });
 
+serviceSelect.addEventListener("change", () => {
+    saveServicePref(serviceSelect.value);
+    updateDownloadBtn();
+});
+
+// A fix button changes the one setting named in the finding -- never silently,
+// and never more than the one thing the message said was wrong.
+serviceFindings.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-fix");
+    if (!btn) return;
+    if (btn.dataset.setting === "outputSize") {
+        outputSize.value = btn.dataset.value;
+        outputSize.dispatchEvent(new Event("change"));
+    }
+});
+
+populateServices();
 syncLayoutControls();
 loadTemplate();
+updateDownloadBtn();
 
 // ---- Slot outline toggles ----
 showLogoOutline.addEventListener("change", () => {
