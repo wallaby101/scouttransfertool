@@ -31,7 +31,7 @@ const PRINT_SERVICES = {
         "prefers_format": {
             "format": "zip",
             "label": "Download PNG(s)",
-            "reason": "Their uploader does not read the resolution of an image inside a PDF. The same sheet uploads as 300 DPI from the ZIP, and draws a \"less than 150 dots per inch\" warning as a PDF — even though both are the identical 300 DPI sheet. Send the ZIP."
+            "reason": "Their uploader does not read the resolution of an image inside a PDF. The same sheet uploads as 300 DPI when you send the PNG, and draws a \"less than 150 dots per inch\" warning as a PDF — even though both are the identical 300 DPI sheet. Send the PNGs."
         }
     },
     "custom": {
