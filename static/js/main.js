@@ -300,16 +300,66 @@ function renderQueue() {
     }).join("");
 }
 
+// How sharp this logo will actually print.
+//
+// The old check compared the file's pixel dimensions against the nominal label
+// size and stopped there, which was wrong in both directions: a logo scaled to
+// 150% in the editor stayed "green" while printing at 200 DPI, and a logo whose
+// shape simply differed from the label was flagged even when it would print at
+// 325 DPI.
+//
+// What matters is the resolution it is actually printed at, which depends on
+// the fit — bleed, scale, rotation and aspect ratio all move it. Place.fitMetrics
+// is the same maths the renderer uses, so this cannot drift from reality.
+const RES_SHARP = 270;   // at or above this, say nothing
+const RES_SOFT = 200;    // between: a little soft; below: visibly fuzzy
+
+function logoPrintResolution(entry) {
+    const meta = entry.cachedMeta;
+    if (!meta || !meta.width || !meta.height) return null;
+
+    const tmpl = SHEET_TEMPLATES[logoSizeSelect.value];
+    const bleedPx = isPacked()
+        ? 0
+        : Place.pyRound(parseFloat(bleedSelect.value) * SHEET_CANVAS.dpi);
+    const st = entry.editorState;
+
+    // prepareLogo rotates by -rotation before fitting, so measure the same box.
+    const rot = Place.rotatedSize(meta.width, meta.height, -(st.rotation || 0));
+    const fit = Place.fitMetrics(rot.w, rot.h, tmpl, bleedPx, { logoScale: st.scale });
+
+    // Drawn at 300 DPI, so the ratio of source to drawn pixels is the real
+    // resolution. The tighter of the two axes governs.
+    const dpi = Math.round(SHEET_CANVAS.dpi
+        * Math.min(rot.w / fit.scaledW, rot.h / fit.scaledH));
+
+    return { dpi, neededW: fit.scaledW, neededH: fit.scaledH };
+}
+
+function resolutionBadge(entry) {
+    const res = logoPrintResolution(entry);
+    if (!res || res.dpi >= RES_SHARP) return null;
+    const status = res.dpi >= RES_SOFT ? "yellow" : "red";
+    const verdict = res.dpi >= RES_SOFT ? "slightly soft" : "will print fuzzy";
+    return `<span class="val-badge ${status}">${res.dpi} DPI — ${verdict}.`
+        + ` Supply ${res.neededW}×${res.neededH}</span>`;
+}
+
 function getValidationSummary(entry) {
     const issues = [];
     if (entry.validation) {
-        const checks = [entry.validation.fileType, entry.validation.dimensions, entry.validation.fileSize];
+        // dimensions is deliberately not here: resolutionBadge() below judges
+        // the same thing by what actually gets printed.
+        const checks = [entry.validation.fileType, entry.validation.fileSize];
         for (const c of checks) {
             if (c && (c.status === "red" || c.status === "yellow")) {
                 issues.push(`<span class="val-badge ${c.status}">${c.msg}</span>`);
             }
         }
     }
+    const res = resolutionBadge(entry);
+    if (res) issues.push(res);
+
     // Variable data mismatch warning
     if (entry.editorState.textOverlay?.enabled) {
         const have = entry.variableData ? entry.variableData.length : 0;
@@ -616,6 +666,8 @@ outputSize.addEventListener("change", () => {
 });
 
 bleedSelect.addEventListener("change", () => {
+    // Bleed enlarges the placed area, so it changes the print resolution.
+    renderQueue();
     if (logoQueue.length > 0) schedulePreview();
 });
 
@@ -623,6 +675,7 @@ layoutMode.addEventListener("change", () => {
     syncLayoutControls();
     updateSlotCounter();
     updateDownloadBtn();
+    renderQueue();
     if (logoQueue.length > 0) schedulePreview();
     else loadTemplate();
 });
@@ -632,6 +685,7 @@ gapInput.addEventListener("input", () => {
     syncLayoutControls();
     updateSlotCounter();
     updateDownloadBtn();
+    renderQueue();
     if (logoQueue.length > 0) schedulePreview();
     else loadTemplate();
 });

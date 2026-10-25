@@ -214,7 +214,7 @@ const SheetText = (function () {
             else pasteX = rx;
             const pasteY = ry - Math.floor(rot.h / 2);
 
-            Place.pasteSelfMask(out, slotW, slotH, rot.px, rot.w, rot.h,
+            Place.alphaComposite(out, slotW, slotH, rot.px, rot.w, rot.h,
                                 pasteX, pasteY);
             return { px: out, w: slotW, h: slotH };
         }
@@ -257,7 +257,7 @@ const SheetText = (function () {
         for (const [yTop, yBot] of [[300, 3600], [3600, 6900]]) {
             const halfH = yBot - yTop;
             const pasteY = yTop + Math.floor((halfH - rot.h) / 2);
-            Place.pasteSelfMask(sheetPx, sheetW, sheetH, rot.px, rot.w, rot.h,
+            Place.alphaComposite(sheetPx, sheetW, sheetH, rot.px, rot.w, rot.h,
                                 pasteX, pasteY);
         }
     }

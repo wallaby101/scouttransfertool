@@ -10,12 +10,12 @@
 // The Pillow behaviours reproduced here were each verified against Pillow
 // directly (see the probes in tools/parity/):
 //
-//   * paste(im, box, im) — passing an RGBA image as its OWN mask, which
-//     _prepare_logo does — blends with BLEND(mask, dst, src) per channel
-//     INCLUDING alpha. Against a transparent destination that squares the
-//     alpha (a=64 becomes 16) and premultiplies the colour. It is lossless for
-//     hard-edged logos and fades antialiased edges. It is existing behaviour,
-//     so it is reproduced rather than fixed.
+//   * paste(im, box, im) — passing an RGBA image as its OWN mask — blends every
+//     channel INCLUDING alpha, so against a transparent destination it squares
+//     the alpha (a=64 becomes 16) and premultiplies the colour. That faded
+//     every antialiased edge and made real artwork print soft. It was a bug,
+//     not a convention, and is fixed: placement is a straight copy onto the
+//     transparent canvas, and text composites source-over.
 //   * paste with an all-255 L mask is a straight overwrite of all four channels.
 //   * alpha_composite is source-over with Pillow's own rounded integer maths.
 //   * rotate(0|90|180|270, expand=True) takes a lossless transpose fast path
@@ -150,6 +150,55 @@ const Place = (function () {
         return { px: new Uint8Array(data), w: size.w, h: size.h, inexact: true };
     }
 
+    /**
+     * The size a bitmap becomes after rotateExpand(), without doing the work.
+     * Lets callers reason about the fit before any pixels move.
+     */
+    function rotatedSize(w, h, degrees) {
+        const a = ((degrees % 360) + 360) % 360;
+        if (a === 0 || a === 180) return { w, h };
+        if (a === 90 || a === 270) return { w: h, h: w };
+        return expandedSize(w, h, a);
+    }
+
+    /**
+     * How big the logo ends up on the sheet: fit the (already rotated) bitmap
+     * into the placed area, then apply the user's scale.
+     *
+     * Split out of prepareLogo so the resolution check in main.js can use the
+     * very same maths rather than a copy that drifts.
+     *
+     * @returns {{placedW, placedH, scaledW, scaledH}} all in sheet pixels
+     */
+    function fitMetrics(w, h, tmpl, bleedPx, opts) {
+        const options = opts || {};
+        const logoScale = options.logoScale === undefined ? 1.0 : options.logoScale;
+
+        const pw = Math.max(1, pyRound(tmpl.logo_w + 2 * bleedPx));
+        const ph = Math.max(1, pyRound(tmpl.logo_h + 2 * bleedPx));
+
+        // Rotate-then-fit: the rotated bounding box is fitted into the placed
+        // area so the whole logo stays visible at any angle.
+        const imgAspect = w / h;
+        const boxAspect = pw / ph;
+        let scaledW;
+        let scaledH;
+        if (imgAspect > boxAspect) {
+            scaledW = pw;
+            scaledH = Math.max(1, pyRound(pw / imgAspect));
+        } else {
+            scaledH = ph;
+            scaledW = Math.max(1, pyRound(ph * imgAspect));
+        }
+
+        return {
+            placedW: pw,
+            placedH: ph,
+            scaledW: Math.max(1, pyRound(scaledW * logoScale)),
+            scaledH: Math.max(1, pyRound(scaledH * logoScale)),
+        };
+    }
+
     // Dispatch matching Image.rotate(angle, expand=True): exact for the
     // quarter turns, resampled otherwise.
     function rotateExpand(px, w, h, degrees) {
@@ -163,27 +212,9 @@ const Place = (function () {
 
     // ---- compositing ------------------------------------------------------
 
-    // paste(src, (x, y), src): src is its own mask. Clipped to the destination
-    // like Pillow's paste.
-    function pasteSelfMask(dst, dw, dh, src, sw, sh, x, y) {
-        for (let sy = 0; sy < sh; sy++) {
-            const dy = y + sy;
-            if (dy < 0 || dy >= dh) continue;
-            for (let sx = 0; sx < sw; sx++) {
-                const dx = x + sx;
-                if (dx < 0 || dx >= dw) continue;
-                const si = (sy * sw + sx) * 4;
-                const di = (dy * dw + dx) * 4;
-                const mask = src[si + 3];
-                dst[di] = blend(mask, dst[di], src[si]);
-                dst[di + 1] = blend(mask, dst[di + 1], src[si + 1]);
-                dst[di + 2] = blend(mask, dst[di + 2], src[si + 2]);
-                dst[di + 3] = blend(mask, dst[di + 3], src[si + 3]);
-            }
-        }
-    }
-
-    // paste(src, (x, y), all-255 mask): straight overwrite of all channels.
+    // paste(src, (x, y)) with no mask: a straight copy of all four channels,
+    // clipped like Pillow's paste. Correct for dropping artwork onto a
+    // transparent canvas, and lossless.
     function pasteOpaqueMask(dst, dw, dh, src, sw, sh, x, y) {
         for (let sy = 0; sy < sh; sy++) {
             const dy = y + sy;
@@ -272,9 +303,6 @@ const Place = (function () {
         // because the jig sits turned on the sheet, and it does not use slots.
         const applyTemplateRotation = options.applyTemplateRotation !== false;
 
-        const placedW = tmpl.logo_w + 2 * bleedPx;
-        const placedH = tmpl.logo_h + 2 * bleedPx;
-
         let px = srcPx;
         let w = srcW;
         let h = srcH;
@@ -290,31 +318,20 @@ const Place = (function () {
             inexact = Boolean(r.inexact);
         }
 
-        const pw = Math.max(1, pyRound(placedW));
-        const ph = Math.max(1, pyRound(placedH));
-
-        // Rotate-then-fit: the rotated bounding box is fitted into the placed
-        // area so the whole logo stays visible at any angle.
-        const imgAspect = w / h;
-        const boxAspect = pw / ph;
-        let scaledW;
-        let scaledH;
-        if (imgAspect > boxAspect) {
-            scaledW = pw;
-            scaledH = Math.max(1, pyRound(pw / imgAspect));
-        } else {
-            scaledH = ph;
-            scaledW = Math.max(1, pyRound(ph * imgAspect));
-        }
-        scaledW = Math.max(1, pyRound(scaledW * logoScale));
-        scaledH = Math.max(1, pyRound(scaledH * logoScale));
+        const fit = fitMetrics(w, h, tmpl, bleedPx, { logoScale });
+        const pw = fit.placedW;
+        const ph = fit.placedH;
+        const scaledW = fit.scaledW;
+        const scaledH = fit.scaledH;
 
         const resized = Resample.resizeRGBA(px, w, h, scaledW, scaledH);
 
         const placed = emptyRGBA(pw, ph);
         const pasteX = Math.floor((pw - scaledW) / 2) + pyRound(offsetX);
         const pasteY = Math.floor((ph - scaledH) / 2) + pyRound(offsetY);
-        pasteSelfMask(placed, pw, ph, resized, scaledW, scaledH, pasteX, pasteY);
+        // Straight copy: `placed` is fully transparent, so this reproduces the
+        // resized logo exactly, antialiased edges included.
+        pasteOpaqueMask(placed, pw, ph, resized, scaledW, scaledH, pasteX, pasteY);
 
         if (applyTemplateRotation && tmpl.rotate) {
             const r = rotateExpand(placed, pw, ph, tmpl.rotate);
@@ -360,7 +377,8 @@ const Place = (function () {
         rotate270,
         rotateExpand,
         expandedSize,
-        pasteSelfMask,
+        rotatedSize,
+        fitMetrics,
         pasteOpaqueMask,
         alphaComposite,
         fillRect,
