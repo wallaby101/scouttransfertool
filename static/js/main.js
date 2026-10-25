@@ -13,6 +13,13 @@ const projectNameInput = document.getElementById("project_name");
 const status = document.getElementById("status");
 const outputSize = document.getElementById("output_size");
 const bleedSelect = document.getElementById("bleed");
+const layoutMode = document.getElementById("layout_mode");
+const gapInput = document.getElementById("gap");
+const gapGroup = document.getElementById("gap-group");
+const gapFit = document.getElementById("gap-fit");
+const bleedGroup = document.getElementById("bleed-group");
+const bleedNote = document.getElementById("bleed-note");
+const outlineToggles = document.getElementById("outline-toggles");
 const viewport = document.getElementById("preview-viewport");
 const previewTransform = document.getElementById("preview-transform");
 const showLogoOutline = document.getElementById("show-logo-outline");
@@ -40,8 +47,72 @@ let logoQueue = [];
 // Each entry: { id, file, objectUrl, editorState: {scale, offsetX, offsetY, textOverlay},
 //               quantity, validation, cachedMeta, variableData }
 
+function isPacked() {
+    return layoutMode.value === "packed";
+}
+
+function gapInches() {
+    const v = parseFloat(gapInput.value);
+    return Number.isFinite(v) && v >= 0 ? v : 0;
+}
+
+// The packed grid for the current settings, or null when nothing fits.
+function currentPackedGrid() {
+    const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
+    return SheetRender.packedGrid(SHEET_TEMPLATES[logoSizeSelect.value], gapPx);
+}
+
 function getMaxSlots() {
+    if (isPacked()) {
+        const grid = currentPackedGrid();
+        return grid ? grid.per_sheet : 0;
+    }
     return EDITOR_TEMPLATES[logoSizeSelect.value].max_slots;
+}
+
+// Swap the bleed and gap controls, and show how many fit per sheet.
+function syncLayoutControls() {
+    const packed = isPacked();
+    // Gap takes bleed's place in the row rather than sitting beside it: three
+    // controls do not fit, and bleed means nothing in this layout anyway.
+    gapGroup.hidden = !packed;
+    gapFit.hidden = !packed;
+    bleedNote.hidden = !packed;
+    bleedGroup.hidden = packed;
+    bleedSelect.disabled = packed;
+    // Those outlines mark jig slots, so they do nothing in the packed layout.
+    outlineToggles.hidden = packed;
+
+    // The per-sheet counts baked into the Logo Size labels are the jig's. In
+    // packed mode they are wrong, and would contradict the fit readout below.
+    for (const opt of logoSizeSelect.options) {
+        const tmpl = SHEET_TEMPLATES[opt.value];
+        // Strip any trailing "(... per sheet)" so this is safe to re-run.
+        const base = opt.textContent.replace(/\s*\([^)]*\)\s*$/, "");
+        if (packed) {
+            const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
+            const g = SheetRender.packedGrid(tmpl, gapPx);
+            opt.textContent = g
+                ? `${base} (${g.per_sheet} per sheet)`
+                : `${base} (does not fit)`;
+        } else {
+            opt.textContent = `${base} (${tmpl.max_slots} per sheet)`;
+        }
+    }
+
+    if (!packed) return;
+
+    const grid = currentPackedGrid();
+    if (!grid) {
+        gapFit.textContent =
+            `A ${gapInches()}" gap leaves no room for a logo this size.`;
+        gapFit.classList.add("warn");
+        return;
+    }
+    gapFit.classList.remove("warn");
+    gapFit.textContent =
+        `${grid.per_sheet} per sheet — ${grid.cols} x ${grid.rows} per jig half`
+        + (grid.turned ? ", turned sideways to fit more" : "");
 }
 
 function getTotalQuantity() {
@@ -253,6 +324,11 @@ function getValidationSummary(entry) {
 function updateSlotCounter() {
     const total = getTotalQuantity();
     const perSheet = getMaxSlots();
+    if (!perSheet) {
+        slotCounterEl.textContent = "No logos fit at this gap";
+        slotCounterEl.classList.remove("at-capacity");
+        return;
+    }
     const sheets = Math.ceil(total / perSheet) || 0;
     if (sheets <= 1) {
         slotCounterEl.textContent = `${total} / ${perSheet} slots used`;
@@ -330,6 +406,8 @@ function currentRenderOptions() {
         bleed: bleedSelect.value,
         outputSize: outputSize.value,
         projectName: projectNameInput.value,
+        layout: layoutMode.value,
+        gap: gapInches(),
     });
 }
 
@@ -377,19 +455,23 @@ function renderPreviewSheets(sheetUrls, overlaySrcLogo, overlaySrcBleed) {
         }
         imagesDiv.appendChild(img);
 
-        const oLogo = document.createElement("img");
-        oLogo.className = "overlay-logo";
-        oLogo.src = overlaySrcLogo;
-        oLogo.draggable = false;
-        if (!showLogoOutline.checked) oLogo.style.display = "none";
-        imagesDiv.appendChild(oLogo);
+        if (overlaySrcLogo) {
+            const oLogo = document.createElement("img");
+            oLogo.className = "overlay-logo";
+            oLogo.src = overlaySrcLogo;
+            oLogo.draggable = false;
+            if (!showLogoOutline.checked) oLogo.style.display = "none";
+            imagesDiv.appendChild(oLogo);
+        }
 
-        const oBleed = document.createElement("img");
-        oBleed.className = "overlay-bleed";
-        oBleed.src = overlaySrcBleed;
-        oBleed.draggable = false;
-        if (!showBleedOutline.checked) oBleed.style.display = "none";
-        imagesDiv.appendChild(oBleed);
+        if (overlaySrcBleed) {
+            const oBleed = document.createElement("img");
+            oBleed.className = "overlay-bleed";
+            oBleed.src = overlaySrcBleed;
+            oBleed.draggable = false;
+            if (!showBleedOutline.checked) oBleed.style.display = "none";
+            imagesDiv.appendChild(oBleed);
+        }
 
         wrapper.appendChild(imagesDiv);
         previewTransform.appendChild(wrapper);
@@ -417,10 +499,14 @@ async function generatePreview() {
 
         const ls = logoSizeSelect.value;
         const size = outputSize.value;
-        const [oLogo, oBleed] = await Promise.all([
-            AppRender.overlayURL(ls, size, "logo"),
-            AppRender.overlayURL(ls, size, "bleed"),
-        ]);
+        // Those outlines mark jig slots; the packed layout has none, and its
+        // cut lines already show where every logo sits.
+        const [oLogo, oBleed] = isPacked()
+            ? [null, null]
+            : await Promise.all([
+                AppRender.overlayURL(ls, size, "logo"),
+                AppRender.overlayURL(ls, size, "bleed"),
+            ]);
         if (token !== previewToken) {
             for (const u of urls) URL.revokeObjectURL(u);
             return;
@@ -463,11 +549,15 @@ async function loadTemplate() {
 
     currentSheetCount = 1;
 
-    const [tplUrl, oLogoUrl, oBleedUrl] = await Promise.all([
-        AppRender.templateURL(ls, size),
-        AppRender.overlayURL(ls, size, "logo"),
-        AppRender.overlayURL(ls, size, "bleed"),
-    ]);
+    const packed = isPacked();
+    const [tplUrl, oLogoUrl, oBleedUrl] = packed
+        ? [await AppRender.templateURL(ls, size, "packed", gapInches()), null, null]
+        : await Promise.all([
+            AppRender.templateURL(ls, size, "jig"),
+            AppRender.overlayURL(ls, size, "logo"),
+            AppRender.overlayURL(ls, size, "bleed"),
+        ]);
+    if (!tplUrl) return;
     if (token !== previewToken) {
         URL.revokeObjectURL(tplUrl);
         return;
@@ -494,19 +584,23 @@ async function loadTemplate() {
     });
     imagesDiv.appendChild(img);
 
-    const oLogo = document.createElement("img");
-    oLogo.className = "overlay-logo";
-    oLogo.src = oLogoUrl;
-    oLogo.draggable = false;
-    if (!showLogoOutline.checked) oLogo.style.display = "none";
-    imagesDiv.appendChild(oLogo);
+    if (oLogoUrl) {
+        const oLogo = document.createElement("img");
+        oLogo.className = "overlay-logo";
+        oLogo.src = oLogoUrl;
+        oLogo.draggable = false;
+        if (!showLogoOutline.checked) oLogo.style.display = "none";
+        imagesDiv.appendChild(oLogo);
+    }
 
-    const oBleed = document.createElement("img");
-    oBleed.className = "overlay-bleed";
-    oBleed.src = oBleedUrl;
-    oBleed.draggable = false;
-    if (!showBleedOutline.checked) oBleed.style.display = "none";
-    imagesDiv.appendChild(oBleed);
+    if (oBleedUrl) {
+        const oBleed = document.createElement("img");
+        oBleed.className = "overlay-bleed";
+        oBleed.src = oBleedUrl;
+        oBleed.draggable = false;
+        if (!showBleedOutline.checked) oBleed.style.display = "none";
+        imagesDiv.appendChild(oBleed);
+    }
 
     wrapper.appendChild(imagesDiv);
     previewTransform.appendChild(wrapper);
@@ -525,6 +619,23 @@ bleedSelect.addEventListener("change", () => {
     if (logoQueue.length > 0) schedulePreview();
 });
 
+layoutMode.addEventListener("change", () => {
+    syncLayoutControls();
+    updateSlotCounter();
+    updateDownloadBtn();
+    if (logoQueue.length > 0) schedulePreview();
+    else loadTemplate();
+});
+
+gapInput.addEventListener("input", () => {
+    // The fit readout updates on every keystroke; the sheet redraw is debounced.
+    syncLayoutControls();
+    updateSlotCounter();
+    updateDownloadBtn();
+    if (logoQueue.length > 0) schedulePreview();
+    else loadTemplate();
+});
+
 projectNameInput.addEventListener("input", () => {
     if (logoQueue.length > 0) schedulePreview();
 });
@@ -532,6 +643,7 @@ projectNameInput.addEventListener("input", () => {
 // ---- Logo size change — update label and reload ----
 logoSizeSelect.addEventListener("change", () => {
     logoLabel.textContent = SIZE_LABELS[logoSizeSelect.value] || SIZE_LABELS["3x3"];
+    syncLayoutControls();
 
     // Reset placement/text state, but keep the per-logo background (an image property).
     for (const entry of logoQueue) {
@@ -564,6 +676,7 @@ logoSizeSelect.addEventListener("change", () => {
     }
 });
 
+syncLayoutControls();
 loadTemplate();
 
 // ---- Slot outline toggles ----

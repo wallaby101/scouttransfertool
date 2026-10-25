@@ -347,6 +347,224 @@ const SheetRender = (function () {
         return plan.numSheets;
     }
 
+    // ---- packed layout ----------------------------------------------------
+
+    // An alternative to the jig slots: pack logos as tightly as the size allows
+    // inside each jig half, with a chosen gap, and print a dotted cut line in
+    // every gap so the sheet can be cut up by hand.
+    //
+    // Mirrors packed_grid() / packed_slot_centers() / _draw_packed_overlays()
+    // and generate_packed_sheet() in core/generator.py; see
+    // PLAN_packed_layout.md for the decisions behind it.
+
+    const CUT_LINE = [255, 0, 0, 255];
+    const CUT_DASH = 6;   // finer than the registration dashes, so it reads dotted
+    const CUT_GAP = 6;
+
+    /**
+     * The grid for one jig half. Tries the logo both ways round and keeps
+     * whichever fits more, preferring upright on a tie. Null when none fit.
+     */
+    function packedGrid(tmpl, gapPx) {
+        const [x0, y0, x1, y1] = tmpl.jig_outlines[0];
+        const areaW = x1 - x0;
+        const areaH = y1 - y0;
+
+        let best = null;
+        for (const turned of [false, true]) {
+            const lw = turned ? tmpl.logo_h : tmpl.logo_w;
+            const lh = turned ? tmpl.logo_w : tmpl.logo_h;
+
+            const usableW = areaW - 2 * gapPx;
+            const usableH = areaH - 2 * gapPx;
+            if (usableW < lw || usableH < lh) continue;
+
+            const cols = Math.floor((usableW + gapPx) / (lw + gapPx));
+            const rows = Math.floor((usableH + gapPx) / (lh + gapPx));
+            if (cols < 1 || rows < 1) continue;
+
+            const perHalf = cols * rows;
+            // Strictly greater, so upright wins a tie.
+            if (best === null || perHalf > best.per_half) {
+                const gridW = cols * lw + (cols - 1) * gapPx;
+                const gridH = rows * lh + (rows - 1) * gapPx;
+                best = {
+                    turned, logo_w: lw, logo_h: lh, cols, rows,
+                    per_half: perHalf,
+                    per_sheet: perHalf * tmpl.jig_outlines.length,
+                    grid_w: gridW, grid_h: gridH,
+                    // Centred, so the leftover is split rather than all landing
+                    // on the right and bottom edges.
+                    pad_x: Math.floor((areaW - gridW) / 2),
+                    pad_y: Math.floor((areaH - gridH) / 2),
+                    gap: gapPx,
+                };
+            }
+        }
+        return best;
+    }
+
+    /** Every logo position on a sheet, first half then second. */
+    function packedSlotCenters(tmpl, grid) {
+        const centers = [];
+        for (const [x0, y0] of tmpl.jig_outlines) {
+            const ox = x0 + grid.pad_x;
+            const oy = y0 + grid.pad_y;
+            for (let r = 0; r < grid.rows; r++) {
+                for (let c = 0; c < grid.cols; c++) {
+                    centers.push([
+                        ox + c * (grid.logo_w + grid.gap) + Math.floor(grid.logo_w / 2),
+                        oy + r * (grid.logo_h + grid.gap) + Math.floor(grid.logo_h / 2),
+                    ]);
+                }
+            }
+        }
+        return centers;
+    }
+
+    // Jig outlines, separator and cut lines. No registration marks: those mark
+    // slot positions, which mean nothing in this layout.
+    function drawPackedOverlays(px, w, h, tmpl, grid, sf) {
+        const s = (v) => pyRound(v * sf);
+        const lw = Math.max(1, pyRound(3 * sf));
+        const lw2 = Math.max(1, pyRound(2 * sf));
+
+        for (const [x0, y0, x1, y1] of tmpl.jig_outlines) {
+            rectOutline(px, w, h, s(x0), s(y0), s(x1), s(y1), lw, BLUE);
+        }
+        hLine(px, w, h, s(tmpl.separator_y), 0, s(SHEET_CANVAS.width), lw2, CYAN);
+
+        const halfGap = Math.floor(grid.gap / 2);
+        for (const [x0, y0] of tmpl.jig_outlines) {
+            const ox = x0 + grid.pad_x;
+            const oy = y0 + grid.pad_y;
+            const top = oy - halfGap;
+            const bottom = oy + grid.grid_h + halfGap;
+            const left = ox - halfGap;
+            const right = ox + grid.grid_w + halfGap;
+
+            // cols + 1 verticals and rows + 1 horizontals, so every logo is boxed.
+            for (let c = 0; c <= grid.cols; c++) {
+                const x = ox - halfGap + c * (grid.logo_w + grid.gap);
+                dashedLine(px, w, h, s(x), s(top), s(x), s(bottom),
+                           lw2, CUT_DASH, CUT_GAP, CUT_LINE);
+            }
+            for (let r = 0; r <= grid.rows; r++) {
+                const y = oy - halfGap + r * (grid.logo_h + grid.gap);
+                dashedLine(px, w, h, s(left), s(y), s(right), s(y),
+                           lw2, CUT_DASH, CUT_GAP, CUT_LINE);
+            }
+        }
+    }
+
+    function planPackedSlots(logoEntries, logoSize, gapPx) {
+        const tmpl = SHEET_TEMPLATES[logoSize];
+        const grid = packedGrid(tmpl, gapPx);
+        if (!grid) return null;
+
+        const centers = packedSlotCenters(tmpl, grid);
+        const flatSlots = [];
+        logoEntries.forEach((entry, entryIdx) => {
+            const overlay = entry.textOverlay;
+            const vd = entry.variableData;
+            const qty = entry.quantity === undefined ? 1 : entry.quantity;
+            for (let i = 0; i < qty; i++) {
+                flatSlots.push([entryIdx, (overlay && vd && i < vd.length) ? vd[i] : null]);
+            }
+        });
+
+        return {
+            grid, centers, flatSlots,
+            slotsPerSheet: centers.length,
+            numSheets: Math.max(1, Math.ceil(flatSlots.length / centers.length)),
+        };
+    }
+
+    // No bleed here: there is no slot opening for it to fill.
+    function preparePackedEntries(logoEntries, logoSize, grid) {
+        const tmpl = SHEET_TEMPLATES[logoSize];
+        return logoEntries.map((entry) => {
+            const prepared = Place.prepareLogo(entry.px, entry.w, entry.h, tmpl, 0, {
+                logoScale: entry.logoScale,
+                offsetX: entry.offsetX,
+                offsetY: entry.offsetY,
+                rotation: entry.rotation,
+                applyTemplateRotation: false,
+            });
+            if (!grid.turned) return prepared;
+            const r = Place.rotateExpand(prepared.px, prepared.w, prepared.h, 90);
+            return { px: r.px, w: r.w, h: r.h, inexact: prepared.inexact };
+        });
+    }
+
+    function renderPackedSheet(opts, sheetNum, plan, prepared) {
+        const { logoEntries, logoSize, outputSize, projectName } = opts;
+        const tmpl = SHEET_TEMPLATES[logoSize];
+        const w = SHEET_CANVAS.width;
+        const h = SHEET_CANVAS.height_22x24;
+        const px = emptySheet(w, h);
+
+        const start = sheetNum * plan.slotsPerSheet;
+        const end = Math.min(start + plan.slotsPerSheet, plan.flatSlots.length);
+
+        for (let slotIdx = 0; slotIdx < end - start; slotIdx++) {
+            const [entryIdx, vdValue] = plan.flatSlots[start + slotIdx];
+            const slot = prepared[entryIdx];
+            const entry = logoEntries[entryIdx];
+            const overlay = entry.textOverlay;
+
+            let img = slot;
+            if (overlay && vdValue !== null && vdValue !== undefined) {
+                img = SheetText.drawTextOnSlot(slot.px, slot.w, slot.h,
+                                               overlay, vdValue, tmpl);
+            }
+
+            const [cx, cy] = plan.centers[slotIdx];
+            const dx = cx - Math.floor(slot.w / 2);
+            const dy = cy - Math.floor(slot.h / 2);
+
+            const bg = hexToRgba(entry.background);
+            if (bg) {
+                Place.fillRect(px, w, h, dx, dy, dx + slot.w - 1, dy + slot.h - 1, bg);
+                Place.alphaComposite(px, w, h, img.px, img.w, img.h, dx, dy);
+            } else {
+                Place.pasteOpaqueMask(px, w, h, img.px, img.w, img.h, dx, dy);
+            }
+        }
+
+        drawPackedOverlays(px, w, h, tmpl, plan.grid, 1.0);
+        SheetText.drawProjectName(px, w, h,
+            sheetLabel(projectName || '', sheetNum, plan.numSheets));
+
+        return outputSize === '22x22'
+            ? cropVertical(px, w, h, SHEET_CANVAS.crop_px)
+            : { px, w, h };
+    }
+
+    /**
+     * Render every packed sheet, handing each to onSheet() and dropping it
+     * before the next, exactly as renderSheets() does.
+     *
+     * @param {number} opts.gap space between logos, in inches
+     */
+    async function renderPackedSheets(opts, onSheet) {
+        const gapPx = pyRound(parseFloat(opts.gap) * SHEET_CANVAS.dpi);
+        const plan = planPackedSlots(opts.logoEntries, opts.logoSize, gapPx);
+        if (!plan) {
+            throw new Error(
+                `A gap of ${opts.gap}" leaves no room for a logo this size.`);
+        }
+        const prepared = preparePackedEntries(opts.logoEntries, opts.logoSize, plan.grid);
+
+        for (let n = 0; n < plan.numSheets; n++) {
+            const sheet = renderPackedSheet(opts, n, plan, prepared);
+            // eslint-disable-next-line no-await-in-loop
+            await onSheet(sheet, n, plan.numSheets);
+            sheet.px = null;
+        }
+        return plan.numSheets;
+    }
+
     // ---- presentation / harness ------------------------------------------
 
     // Composite onto white, as _save_preview does for previews and PDF pages.
@@ -404,6 +622,12 @@ const SheetRender = (function () {
         sheetLabel,
         renderSheet,
         renderSheets,
+        packedGrid,
+        packedSlotCenters,
+        drawPackedOverlays,
+        planPackedSlots,
+        renderPackedSheet,
+        renderPackedSheets,
         compositeOnWhite,
         toCanvas,
         digestBytes,

@@ -268,6 +268,9 @@ const Place = (function () {
         const offsetX = options.offsetX || 0;
         const offsetY = options.offsetY || 0;
         const rotation = options.rotation || 0;
+        // The packed layout skips the template's own rotation: that exists
+        // because the jig sits turned on the sheet, and it does not use slots.
+        const applyTemplateRotation = options.applyTemplateRotation !== false;
 
         const placedW = tmpl.logo_w + 2 * bleedPx;
         const placedH = tmpl.logo_h + 2 * bleedPx;
@@ -313,7 +316,7 @@ const Place = (function () {
         const pasteY = Math.floor((ph - scaledH) / 2) + pyRound(offsetY);
         pasteSelfMask(placed, pw, ph, resized, scaledW, scaledH, pasteX, pasteY);
 
-        if (tmpl.rotate) {
+        if (applyTemplateRotation && tmpl.rotate) {
             const r = rotateExpand(placed, pw, ph, tmpl.rotate);
             return { px: r.px, w: r.w, h: r.h, inexact };
         }

@@ -86,9 +86,13 @@ const AppRender = (function () {
         return {
             logoEntries,
             logoSize: ui.logoSize,
-            bleed: ui.bleed,
+            // Bleed fills the jig's slot opening, so the packed layout forces
+            // it to zero rather than letting a stale value shrink the gap.
+            bleed: ui.layout === 'packed' ? '0.00' : ui.bleed,
             outputSize: ui.outputSize,
             projectName: ui.projectName || '',
+            layout: ui.layout || 'jig',
+            gap: ui.gap === undefined ? 0.25 : ui.gap,
         };
     }
 
@@ -127,6 +131,14 @@ const AppRender = (function () {
         });
     }
 
+    // Both layouts expose the same (options, onSheet) shape, so everything
+    // downstream — preview, export, multi-sheet — is identical.
+    function sheetRenderer(options) {
+        return options.layout === 'packed'
+            ? SheetRender.renderPackedSheets
+            : SheetRender.renderSheets;
+    }
+
     /** Slot outline overlay, cached per template/size/layer. */
     async function overlayURL(logoSize, outputSize, layer) {
         const key = `${logoSize}|${outputSize}|${layer}`;
@@ -138,8 +150,23 @@ const AppRender = (function () {
         return url;
     }
 
-    /** Empty template (overlays only), for the initial view. */
-    async function templateURL(logoSize, outputSize) {
+    /**
+     * Empty template (guides only), for the initial view.
+     *
+     * The packed layout has no fixed slots, so its empty sheet is simply a
+     * packed render with nothing in it — which draws the jig outlines, the
+     * separator and the cut-line grid.
+     */
+    async function templateURL(logoSize, outputSize, layout, gap) {
+        if (layout === 'packed') {
+            let url = null;
+            await SheetRender.renderPackedSheets(
+                { logoEntries: [], logoSize, outputSize, gap, projectName: '' },
+                async (sheet) => {
+                    url = await downscaleToURL(sheet.px, sheet.w, sheet.h, true);
+                });
+            return url;
+        }
         const t = SheetRender.renderEmptyTemplate(logoSize, outputSize);
         return downscaleToURL(t.px, t.w, t.h, true);
     }
@@ -151,7 +178,7 @@ const AppRender = (function () {
     async function renderPreview(options) {
         await ensureFonts();
         const urls = [];
-        await SheetRender.renderSheets(options, async (sheet) => {
+        await sheetRenderer(options)(options, async (sheet) => {
             urls.push(await downscaleToURL(sheet.px, sheet.w, sheet.h, true));
         });
         return urls;
@@ -172,9 +199,11 @@ const AppRender = (function () {
         await ensureFonts();
         const safe = sanitizeName(projectName);
 
+        const render = sheetRenderer(options);
+
         if (kind === 'zip') {
             const files = [];
-            await SheetRender.renderSheets(options, async (sheet, index, total) => {
+            await render(options, async (sheet, index, total) => {
                 if (onProgress) onProgress(index, total);
                 const blob = await ExportPNG.encode(sheet.px, sheet.w, sheet.h,
                                                     SHEET_CANVAS.dpi);
@@ -187,7 +216,7 @@ const AppRender = (function () {
         }
 
         const pdf = ExportPDF.create({ dpi: SHEET_CANVAS.dpi });
-        await SheetRender.renderSheets(options, async (sheet, index, total) => {
+        await render(options, async (sheet, index, total) => {
             if (onProgress) onProgress(index, total);
             await pdf.addSheet(sheet.px, sheet.w, sheet.h);
         });
@@ -216,6 +245,7 @@ const AppRender = (function () {
         sanitizeName,
         overlayURL,
         templateURL,
+        sheetRenderer,
         renderPreview,
         exportSheets,
         downloadBlob,

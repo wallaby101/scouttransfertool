@@ -950,3 +950,34 @@ input[type="text"]:focus {
     margin: 0;
     cursor: pointer;
 }
+
+/* ---- Packed layout controls ---- */
+
+/* .form-group sets an explicit display, which beats the UA rule for [hidden],
+   so hiding one needs saying outright. */
+.form-group[hidden],
+.field-note[hidden],
+.panel-section[hidden] {
+    display: none;
+}
+
+.field-note {
+    margin-top: 6px;
+    font-size: 12px;
+    opacity: 0.7;
+    line-height: 1.4;
+}
+
+#gap-fit {
+    margin-top: 10px;
+    opacity: 1;
+}
+
+#gap-fit.warn {
+    color: #ff8f8f;
+}
+
+#bleed-group.is-disabled label,
+#bleed-group.is-disabled select {
+    opacity: 0.45;
+}

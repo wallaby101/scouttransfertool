@@ -29,6 +29,14 @@
 
                 <section class="panel-section">
                     <div class="form-group">
+                        <label for="layout_mode">Layout</label>
+                        <select id="layout_mode" name="layout_mode">
+                            <option value="jig">Jig slots</option>
+                            <option value="packed">Packed &mdash; cut by hand</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label for="logo_size">Logo Size</label>
                         <select id="logo_size" name="logo_size">
                             <option value="3x3">3 x 3" (30 per sheet)</option>
@@ -59,13 +67,18 @@
 
                 <section class="panel-section">
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group" id="bleed-group">
                             <label for="bleed">Bleed</label>
                             <select id="bleed" name="bleed">
                                 <option value="0.00">0.00"</option>
                                 <option value="0.01">0.01"</option>
                                 <option value="0.02">0.02"</option>
                             </select>
+                        </div>
+                        <div class="form-group" id="gap-group" hidden>
+                            <label for="gap">Gap (in)</label>
+                            <input type="number" id="gap" name="gap"
+                                   value="0.25" min="0" max="2" step="0.05">
                         </div>
                         <div class="form-group">
                             <label for="output_size">Sheet Size</label>
@@ -75,10 +88,15 @@
                             </select>
                         </div>
                     </div>
+                    <div id="gap-fit" class="field-note" hidden></div>
+                    <div id="bleed-note" class="field-note" hidden>
+                        Bleed is not used in the packed layout &mdash; it fills
+                        the jig&rsquo;s slot opening, and there are no slots here.
+                    </div>
                 </section>
             </form>
 
-            <div class="panel-section">
+            <div class="panel-section" id="outline-toggles">
                 <label class="toggle-label">
                     <input type="checkbox" id="show-logo-outline" checked>
                     <span>Show logo size outline</span>
