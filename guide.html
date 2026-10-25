@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+<title>Transfer Sheet Tool &mdash; Guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@500&display=swap">
+<style>
+/* Layout: one reading column, full-bleed figure bands, detail folded into
+   disclosures so each section opens with the short version. */
+:root {
+  --paper:      #f4f2ed;
+  --card:       #ffffff;
+  --ink:        #1a2233;
+  --ink-soft:   #55607a;
+  --rule:       #ddd8cd;
+  --navy:       #16243f;
+  --navy-ink:   #e8ecf5;
+  --go:         #2f7d4f;
+  --go-bg:      #e3f0e6;
+  --stop:       #b23c3c;
+  --stop-bg:    #f8e5e3;
+  --warn:       #9a6a12;
+  --warn-bg:    #f8eed6;
+  --display: "Fraunces", Georgia, serif;
+  --body:    "Source Sans 3", system-ui, sans-serif;
+  --mono:    "Source Code Pro", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12161f; --card: #1a202c; --ink: #e9ecf3; --ink-soft: #9aa5bd;
+    --rule: #2e3647; --navy: #0d1626; --navy-ink: #e8ecf5;
+    --go: #6fcf8f; --go-bg: #15301f; --stop: #f08a7f; --stop-bg: #3a1d1b;
+    --warn: #e3b964; --warn-bg: #382d12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12161f; --card: #1a202c; --ink: #e9ecf3; --ink-soft: #9aa5bd;
+  --rule: #2e3647; --navy: #0d1626; --navy-ink: #e8ecf5;
+  --go: #6fcf8f; --go-bg: #15301f; --stop: #f08a7f; --stop-bg: #3a1d1b;
+  --warn: #e3b964; --warn-bg: #382d12;
+  color-scheme: dark;
+}
+
+body { background: var(--paper); color: var(--ink); font-family: var(--body);
+       font-size: 17px; line-height: 1.6; }
+.wrap { max-width: 760px; margin-inline: auto;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.15;
+             margin: 0; font-weight: 700; }
+h1 { font-size: clamp(2rem, 6vw, 3rem); letter-spacing: -0.015em; }
+h2 { font-size: clamp(1.45rem, 4vw, 1.9rem); }
+h3 { font-size: 1.15rem; font-family: var(--body); font-weight: 700; }
+p  { margin: 0; }
+a  { color: inherit; }
+code, .mono { font-family: var(--mono); font-size: 0.92em; }
+
+/* ---- bands ---- */
+.band { padding-block: clamp(2.2rem, 6vw, 3.4rem); border-top: 1px solid var(--rule); }
+.band.dark { background: var(--navy); color: var(--navy-ink); border-top: none; }
+.band.dark .eyebrow, .band.dark .lede { color: #a9b6d0; }
+.stack { display: flex; flex-direction: column; gap: 1.1rem; }
+.eyebrow { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.13em;
+           text-transform: uppercase; color: var(--ink-soft); }
+.lede { color: var(--ink-soft); font-size: 1.05rem; }
+
+/* ---- hero ---- */
+.hero { background: var(--navy); color: var(--navy-ink);
+        padding-block: clamp(2.6rem, 8vw, 4.2rem); }
+.hero h1 { color: #fff; }
+.urlbar { text-decoration: none; display: inline-flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+          background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18);
+          border-radius: 8px; padding: .55rem .8rem; font-family: var(--mono);
+          font-size: .9rem; word-break: break-all; }
+.hero .lede { max-width: 54ch; }
+.backlink { color: #a9b6d0; text-decoration: none; font-size: .88rem;
+            font-weight: 600; width: fit-content; }
+.backlink:hover, .backlink:focus-visible { color: #fff; }
+
+/* ---- step cards ---- */
+.steps { display: grid; gap: .7rem; }
+.step { display: grid; grid-template-columns: 2.1rem 1fr; gap: .9rem;
+        align-items: start; background: var(--card); border: 1px solid var(--rule);
+        border-radius: 10px; padding: .9rem 1rem; }
+.num { width: 2.1rem; height: 2.1rem; border-radius: 50%; display: grid;
+       place-items: center; background: var(--navy); color: #fff;
+       font-family: var(--display); font-weight: 700; font-size: 1rem; }
+.step p { color: var(--ink-soft); font-size: .97rem; margin-top: .15rem; }
+.step strong { color: var(--ink); }
+
+/* ---- annotated figure ---- */
+figure { margin: 0; }
+.shot { position: relative; border: 1px solid var(--rule); border-radius: 10px;
+        overflow: hidden; background: var(--card); }
+.shot img { display: block; width: 100%; max-width: 100%; }
+.pin { position: absolute; width: 1.55rem; height: 1.55rem; border-radius: 50%;
+       background: #e0366b; color: #fff; display: grid; place-items: center;
+       font-size: .8rem; font-weight: 700; transform: translate(-50%, -50%);
+       box-shadow: 0 0 0 3px rgba(224,54,107,.3); font-family: var(--body); }
+figcaption { color: var(--ink-soft); font-size: .88rem; margin-top: .55rem; }
+
+/* ---- callouts ---- */
+.note { border-left: 4px solid var(--rule); background: var(--card);
+        border-radius: 0 8px 8px 0; padding: .85rem 1rem; display: grid; gap: .4rem; }
+.note.stop { border-left-color: var(--stop); background: var(--stop-bg); }
+.note.go   { border-left-color: var(--go);   background: var(--go-bg); }
+.note.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.note h3 { font-size: 1rem; }
+.note.stop h3 { color: var(--stop); }
+.note.go h3   { color: var(--go); }
+.note.warn h3 { color: var(--warn); }
+.note p { font-size: .96rem; }
+
+/* ---- chips, mimicking the app's own language ---- */
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip { font-size: .78rem; font-weight: 700; padding: .25rem .6rem; border-radius: 4px;
+        font-family: var(--body); white-space: nowrap; }
+.chip.ok   { background: var(--go-bg);   color: var(--go); }
+.chip.bad  { background: var(--stop-bg); color: var(--stop); }
+
+/* ---- buttons, mimicking the app ---- */
+.btnrow { display: flex; flex-wrap: wrap; gap: .5rem; }
+.btn { font-family: var(--body); font-weight: 700; font-size: .9rem;
+       padding: .55rem .9rem; border-radius: 6px; background: #2f9e5c; color: #fff;
+       border: 2px solid transparent; }
+.btn.outlined { border-color: #6fcf8f; }
+.btn.quiet { background: #3c4a66; }
+
+/* ---- tables ---- */
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { text-align: left; padding: .6rem .7rem; border-bottom: 1px solid var(--rule);
+         vertical-align: top; }
+th { font-size: .74rem; letter-spacing: .09em; text-transform: uppercase;
+     color: var(--ink-soft); font-weight: 700; }
+td.num-cell { font-variant-numeric: tabular-nums; font-family: var(--mono); }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ---- two-up ---- */
+.two { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
+.two > * { min-width: 0; }
+@media (max-width: 620px) { .two { grid-template-columns: 1fr; } }
+
+/* ---- disclosure ---- */
+details { background: var(--card); border: 1px solid var(--rule); border-radius: 8px;
+          padding: .2rem .9rem; }
+details[open] { padding-bottom: .9rem; }
+summary { cursor: pointer; font-weight: 600; font-size: .94rem; padding: .7rem 0;
+          list-style: none; display: flex; align-items: center; gap: .5rem; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "\25B8"; color: var(--ink-soft); transition: transform .15s; }
+details[open] summary::before { transform: rotate(90deg); }
+details .stack { gap: .7rem; }
+details p, details li { font-size: .95rem; color: var(--ink-soft); }
+details strong { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { summary::before { transition: none; } }
+
+svg { display: block; width: 100%; height: auto; max-width: 100%; }
+ul { margin: 0; padding-left: 1.2rem; }
+li { margin-bottom: .3rem; }
+:focus-visible { outline: 3px solid #e0366b; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap stack">
+    <a class="backlink" href="./">&larr; Back to the tool</a>
+    <span class="eyebrow">Scout &middot; DTF transfer sheets</span>
+    <h1>Transfer Sheet Tool</h1>
+    <p class="lede">Arranges your logos onto a print-ready sheet for the heatpress,
+      with the registration marks and jig outlines already in the right places.</p>
+    <a class="urlbar" href="https://wallaby101.github.io/scouttransfertool/">wallaby101.github.io/scouttransfertool</a>
+    <p class="lede" style="font-size:.92rem">Nothing to install. Your logo files never
+      leave your computer, and it keeps working if the internet drops.</p>
+  </div>
+</header>
+
+<section class="band">
+  <div class="wrap stack">
+    <span class="eyebrow">The whole job</span>
+    <h2>Five steps</h2>
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div>
+        <strong>Type a project name</strong>
+        <p>Printed small in the sheet margin and used for the file name. The download
+          buttons stay greyed out until you fill it in.</p></div></div>
+      <div class="step"><span class="num">2</span><div>
+        <strong>Pick the logo size</strong>
+        <p>3&nbsp;&times;&nbsp;3&Prime; or 3.25&nbsp;&times;&nbsp;1.75&Prime;. If you are
+          not sure, leave it on 3&nbsp;&times;&nbsp;3.</p></div></div>
+      <div class="step"><span class="num">3</span><div>
+        <strong>Drag your logo in</strong>
+        <p>A PNG with a transparent background gives the best result. JPEGs work, but
+          anything transparent in them comes out white.</p></div></div>
+      <div class="step"><span class="num">4</span><div>
+        <strong>Set how many you need</strong>
+        <p>Use &minus; and &plus;, or click the number and type it. The counter below
+          shows how much of the sheet you have filled.</p></div></div>
+      <div class="step"><span class="num">5</span><div>
+        <strong>Download</strong>
+        <p>Check the printer panel is green, then click
+          <strong>Download&nbsp;PNG</strong>. That is the file you send.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap stack">
+    <span class="eyebrow">Where everything is</span>
+    <h2>The window</h2>
+    <figure>
+      <div class="shot">
+        <img src="guide-img/app-overview.jpg" alt="The tool with a job loaded: controls down the left, the sheet preview on the right">
+        <span class="pin" style="left:10%;  top:13%">1</span>
+        <span class="pin" style="left:10%;  top:26.5%">2</span>
+        <span class="pin" style="left:10%;  top:36%">3</span>
+        <span class="pin" style="left:11.5%;top:41.5%">4</span>
+        <span class="pin" style="left:8%;   top:95%">5</span>
+      </div>
+      <figcaption>Controls down the left, the sheet as it will print on the right.
+        The preview updates by itself every time you change something.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="band dark">
+  <div class="wrap stack">
+    <span class="eyebrow">Before you upload</span>
+    <h2>The printer check</h2>
+    <p class="lede">Pick your printer under <strong>Print Service</strong> and the tool
+      checks your sheet against that company&rsquo;s published limits. It always shows
+      what it measured, so a quiet check is not a broken one.</p>
+
+    <div class="two">
+      <div class="note go">
+        <h3>Good to send</h3>
+        <div class="chips">
+          <span class="chip ok">&#10003; Sheet 22 x 22&Prime;</span>
+          <span class="chip ok">&#10003; Logo 600 DPI</span>
+        </div>
+        <p>Both green. Nothing between you and the download.</p>
+      </div>
+      <div class="note stop">
+        <h3>Stop</h3>
+        <div class="chips">
+          <span class="chip bad">&times; Sheet 22 x 24&Prime;</span>
+          <span class="chip ok">&#10003; Logo 600 DPI</span>
+        </div>
+        <p>The download greys out and a red box explains why, with a button that
+          fixes it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap stack">
+    <span class="eyebrow">The expensive mistake</span>
+    <h2>The sheet size trap</h2>
+    <p class="lede">This one cost a real job. Transfer Express accept an uploaded file
+      up to <strong>22&nbsp;&times;&nbsp;22&Prime;</strong>. Send a 22&nbsp;&times;&nbsp;24&Prime;
+      sheet and they do not refuse it &mdash; they shrink the whole thing to fit.</p>
+
+    <svg viewBox="0 0 640 230" role="img" aria-label="A 22 by 24 inch sheet is scaled to 91.7 percent, printing at 20.17 by 22 inches, so a 3 inch label prints at 2.75 inches">
+      <rect x="40" y="26" width="128" height="140" rx="4" fill="none"
+            stroke="currentColor" stroke-width="2"/>
+      <text x="104" y="100" text-anchor="middle" font-size="17" font-weight="700"
+            fill="currentColor">22 &times; 24&Prime;</text>
+      <text x="104" y="122" text-anchor="middle" font-size="13" fill="currentColor"
+            opacity=".65">what you sent</text>
+      <text x="104" y="190" text-anchor="middle" font-size="13" fill="currentColor"
+            opacity=".65">3&Prime; label</text>
+
+      <path d="M196 96 L268 96" stroke="currentColor" stroke-width="2" fill="none"/>
+      <path d="M262 90 L270 96 L262 102 Z" fill="currentColor"/>
+      <text x="232" y="82" text-anchor="middle" font-size="14" font-weight="700"
+            fill="#b23c3c">91.7%</text>
+      <text x="232" y="118" text-anchor="middle" font-size="12" fill="currentColor"
+            opacity=".65">they scale it</text>
+
+      <rect x="300" y="38" width="117" height="128" rx="4" fill="none"
+            stroke="#b23c3c" stroke-width="2"/>
+      <text x="358" y="100" text-anchor="middle" font-size="17" font-weight="700"
+            fill="#b23c3c">20.17 &times; 22&Prime;</text>
+      <text x="358" y="122" text-anchor="middle" font-size="13" fill="#b23c3c"
+            opacity=".8">what printed</text>
+      <text x="358" y="190" text-anchor="middle" font-size="13" font-weight="700"
+            fill="#b23c3c">prints at 2.75&Prime;</text>
+
+      <path d="M452 96 L524 96" stroke="currentColor" stroke-width="2" fill="none"
+            opacity=".4"/>
+      <path d="M518 90 L526 96 L518 102 Z" fill="currentColor" opacity=".4"/>
+      <rect x="556" y="44" width="56" height="116" rx="4" fill="none"
+            stroke="#2f7d4f" stroke-width="2"/>
+      <text x="584" y="96" text-anchor="middle" font-size="13" font-weight="700"
+            fill="#2f7d4f">22 &times; 22</text>
+      <text x="584" y="114" text-anchor="middle" font-size="12" fill="#2f7d4f">fits</text>
+      <text x="584" y="190" text-anchor="middle" font-size="13" font-weight="700"
+            fill="#2f7d4f">3&Prime; stays 3&Prime;</text>
+    </svg>
+
+    <div class="note stop">
+      <h3>Every label comes out undersized</h3>
+      <p>A 3&Prime; label prints at 2.75&Prime;, and the jig does not line up. Nothing on
+        their page says they changed your file &mdash; it just shows the new size.</p>
+    </div>
+    <div class="note go">
+      <h3>The tool catches it</h3>
+      <p>The download greys out and a <strong>Switch to 22&nbsp;&times;&nbsp;22&Prime;</strong>
+        button changes the setting for you.</p>
+    </div>
+
+    <details>
+      <summary>Why their bigger sheet does not help</summary>
+      <div class="stack">
+        <p>They do sell a 24&nbsp;&times;&nbsp;22&Prime; gang sheet, but only if you build
+          it inside their own online designer. A file you upload is always treated as a
+          single image, and their maximum single image is 22&nbsp;&times;&nbsp;22&Prime;.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap stack">
+    <span class="eyebrow">Send the right file</span>
+    <h2>PNG, not PDF</h2>
+    <div class="note warn">
+      <h3>Transfer Express cannot read resolution inside a PDF</h3>
+      <p>The identical sheet uploads as 300&nbsp;DPI when you send the PNG, and draws a
+        &ldquo;less than 150 dots per inch&rdquo; warning as a PDF. Both files are the
+        same 300&nbsp;DPI sheet.</p>
+    </div>
+    <div class="btnrow">
+      <span class="btn outlined">Download PNG</span>
+      <span class="btn quiet">Download PDF</span>
+    </div>
+    <p class="lede" style="font-size:.95rem">The app outlines the button to use in
+      green. The PDF is still the easier file to look over on screen before committing
+      film &mdash; just do not upload it.</p>
+
+    <details>
+      <summary>What you get, and what it is named</summary>
+      <div class="stack">
+        <div class="tablewrap"><table>
+          <thead><tr><th>Job</th><th>Button</th><th>What lands</th></tr></thead>
+          <tbody>
+            <tr><td>One sheet</td><td>Download PNG</td>
+                <td class="mono">Northgate Spring Run_sheet1.png</td></tr>
+            <tr><td>Several sheets</td><td>Save PNGs to Folder</td>
+                <td>You pick a folder; each sheet is written into it as its own PNG</td></tr>
+            <tr><td>Several, older browser</td><td>Download PNGs (ZIP)</td>
+                <td class="mono">Northgate Spring Run_sheets.zip</td></tr>
+          </tbody>
+        </table></div>
+        <p>Every file is 300&nbsp;DPI with a transparent background, which is what DTF
+          film needs. Transfer Express take one file per upload slot, so a multi-sheet
+          job means uploading each PNG separately either way.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap stack">
+    <span class="eyebrow">Choose a layout</span>
+    <h2>Jig slots or packed</h2>
+    <div class="two">
+      <figure>
+        <div class="shot"><img src="guide-img/layout-jig.jpg"
+             alt="Jig slots layout: logos in the jig's fixed openings with red registration marks"></div>
+        <figcaption><strong>Jig slots</strong> &mdash; the default. Lines up with the
+          physical jig.</figcaption>
+      </figure>
+      <figure>
+        <div class="shot"><img src="guide-img/layout-packed.jpg"
+             alt="Packed layout: logos turned sideways and packed tightly with dotted cut lines"></div>
+        <figcaption><strong>Packed</strong> &mdash; more per sheet, cut apart by hand
+          along the dotted lines.</figcaption>
+      </figure>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Logo size</th><th>Jig slots</th><th>Packed</th><th>Gain</th></tr></thead>
+      <tbody>
+        <tr><td>3 &times; 3&Prime;</td><td class="num-cell">30</td>
+            <td class="num-cell">36</td><td class="num-cell">+6</td></tr>
+        <tr><td>3.25 &times; 1.75&Prime;</td><td class="num-cell">50</td>
+            <td class="num-cell">54</td><td class="num-cell">+4</td></tr>
+      </tbody>
+    </table></div>
+    <p class="lede" style="font-size:.95rem">Use jig slots for normal jobs. Use packed
+      when you are cutting the transfers out by hand and want more on each sheet of film.</p>
+
+    <details>
+      <summary>The Gap setting, and what changes in packed mode</summary>
+      <div class="stack">
+        <p><strong>Gap</strong> is the space between logos and around the edge of each
+          jig half. Type it in inches; 0.25 is a sensible start. Underneath, the tool
+          tells you what that gap buys &mdash; <em>54 per sheet, 9&nbsp;&times;&nbsp;3 per
+          jig half, turned sideways to fit more</em> &mdash; and updates as you type.</p>
+        <ul>
+          <li><strong>Bleed disappears.</strong> It exists to fill the jig&rsquo;s slot
+            opening, and there are no openings here.</li>
+          <li><strong>The outline checkboxes disappear.</strong> They mark jig slots;
+            the dotted cut lines already show where everything is.</li>
+          <li>Logos fill the top half first, then the bottom. 20 logos at
+            3&nbsp;&times;&nbsp;3&Prime; gives 18 and 2.</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap stack">
+    <span class="eyebrow">Per logo</span>
+    <h2>Adjusting and adding text</h2>
+    <p class="lede">Click the <strong>&#9998;</strong> button in a logo&rsquo;s row.
+      Everything in the editor affects that one logo, on every copy of it.</p>
+    <div class="two">
+      <details>
+        <summary>Scale, rotate and position</summary>
+        <div class="stack">
+          <p><strong>Scale</strong> &mdash; 100% fills as much of the label as it can
+            without cropping. Past 100% crops the edges.</p>
+          <p><strong>Rotate</strong> &mdash; any angle, or quarter turns. The logo is
+            always re-fitted after turning, so nothing is cut off.</p>
+          <p><strong>The six arrows</strong> push the logo to an edge; the dot
+            re-centres it. You can also drag it on the picture.</p>
+          <p><strong>Background</strong> is transparent by default. Pick a colour to
+            print a solid block behind the logo instead.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Text and variable data</summary>
+        <div class="stack">
+          <p>Click <strong>+ Add Text</strong> to set the font, size, colour and
+            position. <strong>You do not type your words here</strong> &mdash;
+            <code>{{name}}</code> in the preview is a placeholder and never prints.</p>
+          <p>Type the actual words in the <strong>Variable Data</strong> panel on the
+            left, comma-separated, then click <strong>Apply</strong>. One value per
+            label; the counter turns green when you have enough.</p>
+          <p>Tick <strong>Same text on every label</strong> to type one word for all of
+            them. Commas stay intact, so <em>Smith, Jr.</em> survives as one name.</p>
+        </div>
+      </details>
+    </div>
+    <div class="note warn">
+      <h3>Text will not print without values</h3>
+      <p>Styling the text is not enough. If the Variable Data box is empty, no text is
+        printed at all and nothing warns you on the sheet itself. Check the counter
+        reads green before you download.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap stack">
+    <span class="eyebrow">When it goes wrong</span>
+    <h2>Quick fixes</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>What you see</th><th>What to do</th></tr></thead>
+      <tbody>
+        <tr><td>Download buttons greyed out</td>
+            <td>Usually no project name. Fill it in at the top left.</td></tr>
+        <tr><td><span class="chip bad">&times; Sheet 22 x 24&Prime;</span></td>
+            <td>Click <strong>Switch to 22&nbsp;&times;&nbsp;22&Prime;</strong> in the red box.</td></tr>
+        <tr><td>Orange <strong>200 DPI &mdash; slightly soft</strong> under a logo</td>
+            <td>Ask for the logo again at the pixel size shown, or turn the scale down.</td></tr>
+        <tr><td><strong>Need 6 values, have 0</strong> in red</td>
+            <td>Add one value per label in Variable Data and click Apply.</td></tr>
+        <tr><td>A white block behind the logo</td>
+            <td>The file is a JPEG, which cannot be transparent. Re-export as PNG.</td></tr>
+        <tr><td>Text on the labels is invisible</td>
+            <td>The text colour matches what is behind it. Pick a darker colour.</td></tr>
+        <tr><td>Logo cut off at the edges</td>
+            <td>Scale is above 100%. Open the editor and click <strong>Reset</strong>.</td></tr>
+        <tr><td>Anything else odd</td>
+            <td>Close the window and open it again. Nothing is kept between sessions.</td></tr>
+      </tbody>
+    </table></div>
+
+    <details>
+      <summary>The right size to ask a designer for</summary>
+      <div class="stack">
+        <div class="tablewrap"><table>
+          <thead><tr><th>Label size</th><th>Ask for</th></tr></thead>
+          <tbody>
+            <tr><td>3 &times; 3&Prime;</td><td class="num-cell">900 &times; 900 pixels</td></tr>
+            <tr><td>3.25 &times; 1.75&Prime;</td><td class="num-cell">975 &times; 525 pixels</td></tr>
+          </tbody>
+        </table></div>
+        <p>Bigger is fine &mdash; the tool scales it down cleanly. Smaller is what causes
+          soft edges. Below 150&nbsp;DPI, Transfer Express&rsquo;s printer adds a white
+          jagged line around the artwork.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>What Transfer Express expects, beyond what the tool can check</summary>
+      <div class="stack">
+        <ul>
+          <li>Lines thinner than <strong>0.018&Prime;</strong> print, but they cannot put
+            adhesive there, so those parts may not last.</li>
+          <li>Soft edges that fade away to nothing will not print. Avoid drop shadows
+            and feathered edges.</li>
+          <li>They print CMYK, which cannot reproduce fluorescent or metallic colours.</li>
+          <li>Set <strong>Remove White</strong> to <strong>Original</strong>. These
+            sheets are already transparent, so the only white it could remove is white
+            inside your logos.</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="band dark">
+  <div class="wrap stack">
+    <span class="eyebrow">Staying current</span>
+    <h2>When a new version appears</h2>
+    <p class="lede">A small dark bar appears at the bottom of the window saying
+      <strong>A new version is ready</strong>. There is nothing to download and nothing
+      to install.</p>
+    <div class="note go" style="color:var(--ink)">
+      <h3>Nothing changes until you click Reload</h3>
+      <p>If you are mid-job, finish it and download your sheets first. The version you
+        are using carries on working exactly as it was. Your logos and settings are not
+        kept across a reload.</p>
+    </div>
+    <p class="lede" style="font-size:.93rem">Two limits worth knowing: 500 labels per
+      job, and a project name is required before anything will download.</p>
+  </div>
+</section>
+</body>
+</html>
