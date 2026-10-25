@@ -489,8 +489,17 @@ function updateSlotCounter() {
     slotCounterEl.classList.toggle("at-capacity", total > 0);
 }
 
+function sheetCount() {
+    const perSheet = getMaxSlots();
+    if (!perSheet) return 0;
+    return Math.ceil(getTotalQuantity() / perSheet);
+}
+
 function updateDownloadBtn() {
     renderServicePanel();
+    downloadZipBtn.textContent = sheetCount() > 1
+        ? "Download PNGs (ZIP)"
+        : "Download PNG";
     const ok = canGenerate();
     downloadZipBtn.disabled = !ok;
     downloadPdfBtn.disabled = !ok;
@@ -899,7 +908,7 @@ async function runExport(btn, kind) {
             });
 
         AppRender.downloadBlob(blob, filename);
-        showStatus(`${kind.toUpperCase()} downloaded.`, "success");
+        showStatus(`Downloaded ${filename}`, "success");
     } catch (err) {
         showStatus(err.message || "Generation failed", "error");
     } finally {

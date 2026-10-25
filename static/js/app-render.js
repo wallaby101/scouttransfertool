@@ -205,14 +205,26 @@ const AppRender = (function () {
             const files = [];
             await render(options, async (sheet, index, total) => {
                 if (onProgress) onProgress(index, total);
-                const blob = await ExportPNG.encode(sheet.px, sheet.w, sheet.h,
-                                                    SHEET_CANVAS.dpi);
                 files.push({
                     name: ExportZip.sheetName(safe, index),
-                    bytes: new Uint8Array(await blob.arrayBuffer()),
+                    blob: await ExportPNG.encode(sheet.px, sheet.w, sheet.h,
+                                                 SHEET_CANVAS.dpi),
                 });
             });
-            return { blob: ExportZip.build(files), filename: `${safe}_sheets.zip` };
+
+            // A single sheet needs no container. Handing over the PNG itself
+            // saves the user unzipping it, and it is the file the print service
+            // wants anyway.
+            if (files.length === 1) {
+                return { blob: files[0].blob, filename: files[0].name };
+            }
+
+            const entries = [];
+            for (const f of files) {
+                entries.push({ name: f.name,
+                               bytes: new Uint8Array(await f.blob.arrayBuffer()) });
+            }
+            return { blob: ExportZip.build(entries), filename: `${safe}_sheets.zip` };
         }
 
         const pdf = ExportPDF.create({ dpi: SHEET_CANVAS.dpi });
