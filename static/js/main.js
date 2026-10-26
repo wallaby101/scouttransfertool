@@ -298,7 +298,7 @@ function renderQueue() {
 
         return `<div class="queue-row${errorClass}" data-id="${entry.id}">
             <img class="queue-thumb" src="${entry.objectUrl}" alt="">
-            <span class="queue-filename" title="${entry.file.name}">${entry.file.name}</span>
+            <span class="queue-filename" title="${escapeHTML(entry.file.name)}">${escapeHTML(entry.file.name)}</span>
             <div class="queue-qty">
                 <button type="button" class="btn-icon qty-minus" title="Decrease">-</button>
                 <input type="number" class="qty-input" value="${entry.quantity}" min="1">
@@ -401,7 +401,8 @@ function saveServicePref(id) {
 
 function populateServices() {
     serviceSelect.innerHTML = Object.entries(PRINT_SERVICES)
-        .map(([id, p]) => `<option value="${id}">${p.name}</option>`).join("");
+        .map(([id, p]) =>
+            `<option value="${escapeHTML(id)}">${escapeHTML(p.name)}</option>`).join("");
     const saved = loadServicePref();
     serviceSelect.value = (saved && PRINT_SERVICES[saved]) ? saved : "custom";
 }
@@ -440,7 +441,7 @@ function renderServicePanel() {
     const result = currentPrecheck();
 
     const chips = result.summary.map(c =>
-        `<span class="chk ${c.state}">${c.label}</span>`).join("");
+        `<span class="chk ${c.state}">${escapeHTML(c.label)}</span>`).join("");
     // Shown whenever there is something to report on, so a clean sheet reads as
     // "checked and fine" rather than as nothing having happened.
     serviceSummary.innerHTML = chips;
@@ -448,23 +449,25 @@ function renderServicePanel() {
 
     serviceFindings.innerHTML = result.findings.map(f => `
         <div class="finding ${f.level}">
-            <div class="finding-title">${f.title}</div>
-            <div class="finding-detail">${f.detail}</div>
+            <div class="finding-title">${escapeHTML(f.title)}</div>
+            <div class="finding-detail">${escapeHTML(f.detail)}</div>
             ${f.fix ? `<button type="button" class="btn-fix"
-                data-setting="${f.fix.setting}" data-value="${f.fix.value}"
-                >${f.fix.label}</button>` : ""}
+                data-setting="${escapeHTML(f.fix.setting)}"
+                data-value="${escapeHTML(f.fix.value)}"
+                >${escapeHTML(f.fix.label)}</button>` : ""}
         </div>`).join("");
     serviceFindings.hidden = result.findings.length === 0;
 
     const pref = result.prefersFormat;
-    serviceFormat.innerHTML = pref ? `<strong>${pref.label}</strong> ${pref.reason}` : "";
+    serviceFormat.innerHTML = pref
+        ? `<strong>${escapeHTML(pref.label)}</strong> ${escapeHTML(pref.reason)}` : "";
     serviceFormat.hidden = !pref;
     downloadZipBtn.classList.toggle("preferred", !!pref && pref.format === "zip");
     downloadPdfBtn.classList.toggle("preferred", !!pref && pref.format === "pdf");
 
     const notes = (profile && profile.notes) || [];
     serviceNotes.querySelector("ul").innerHTML =
-        notes.map(n => `<li>${n}</li>`).join("");
+        notes.map(n => `<li>${escapeHTML(n)}</li>`).join("");
     serviceNotes.hidden = notes.length === 0;
 
     return result;
