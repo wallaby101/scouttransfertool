@@ -38,6 +38,8 @@ const zoomLevel = document.getElementById("zoom-level");
 const SIZE_LABELS = {
     "3x3": 'Logos (3x3" PNG or JPEG)',
     "3.25x1.75": 'Logos (3.25x1.75" PNG or JPEG)',
+    "2.5x1.3": 'Logos (2.5x1.3" PNG or JPEG)',
+    "2x2": 'Logos (2x2" PNG or JPEG)',
 };
 
 // ---- Template dimensions ----
