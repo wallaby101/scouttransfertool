@@ -167,43 +167,62 @@ const SheetRender = (function () {
 
     // Port of generate_slot_overlay(). These are drawn at alpha 200, which is
     // written straight into the buffer rather than going through compositing.
+    //
     // bleedPx is how far the print reaches beyond the label. Left undefined it
     // falls back to the slot opening, which is the maximum bleed -- the old
     // behaviour, kept so existing parity fixtures still compare.
-    function renderSlotOverlay(logoSize, outputSize, layer, bleedPx) {
+    //
+    // sf renders the overlay AT the wanted scale rather than full size, exactly
+    // as the Python does. This matters: the preview is a quarter scale, and a
+    // 2 px line shrunk by four afterwards mostly vanishes -- it was losing about
+    // 70% of the outline, which is why edges went missing. Scaling here keeps
+    // the line at max(1, round(2 * sf)), so it never falls below a whole pixel.
+    function renderSlotOverlay(logoSize, outputSize, layer, bleedPx, sf) {
+        const s = (sf === undefined || sf === null) ? 1.0 : sf;
         const tmpl = SHEET_TEMPLATES[logoSize];
-        const w = SHEET_CANVAS.width;
-        const h = SHEET_CANVAS.height_22x24;
+        const w = Place.pyRound(SHEET_CANVAS.width * s);
+        const h = Place.pyRound(SHEET_CANVAS.height_22x24 * s);
         const px = emptySheet(w, h);
-        const lw = 2;
+
+        const sw = Place.pyRound(tmpl.slot_w * s);
+        const sh = Place.pyRound(tmpl.slot_h * s);
+        const logoW = Place.pyRound(tmpl.logo_w * s);
+        const logoH = Place.pyRound(tmpl.logo_h * s);
+        const lw = Math.max(1, Place.pyRound(2 * s));
         const red = [255, 0, 0, 200];
         const green = [0, 200, 0, 200];
 
-        if (layer === 'bleed' || layer === 'both') {
-            // The printed area is the label plus the bleed on every side, so at
-            // 0.00" this lands exactly on the green logo outline.
-            const bp = bleedPx === undefined || bleedPx === null
-                ? Math.floor((tmpl.slot_w - tmpl.logo_w) / 2)
-                : bleedPx;
-            const bw = tmpl.logo_w + bp * 2;
-            const bh = tmpl.logo_h + bp * 2;
-            for (const [cx, cy] of tmpl.slot_centers) {
-                const x0 = cx - Math.floor(bw / 2);
-                const y0 = cy - Math.floor(bh / 2);
-                rectOutline(px, w, h, x0, y0, x0 + bw - 1, y0 + bh - 1, lw, red);
-            }
+        // The printed area is the label plus the bleed on every side, so at
+        // 0.00" this lands exactly on the green logo outline.
+        let bleedW, bleedH;
+        if (bleedPx === undefined || bleedPx === null) {
+            bleedW = sw;
+            bleedH = sh;
+        } else {
+            const bp = Place.pyRound(bleedPx * s);
+            bleedW = logoW + bp * 2;
+            bleedH = logoH + bp * 2;
         }
-        if (layer === 'logo' || layer === 'both') {
-            for (const [cx, cy] of tmpl.slot_centers) {
-                const x0 = cx - Math.floor(tmpl.logo_w / 2);
-                const y0 = cy - Math.floor(tmpl.logo_h / 2);
+
+        for (const [cx, cy] of tmpl.slot_centers) {
+            const scx = Place.pyRound(cx * s);
+            const scy = Place.pyRound(cy * s);
+            if (layer === 'bleed' || layer === 'both') {
+                const x0 = scx - Math.floor(bleedW / 2);
+                const y0 = scy - Math.floor(bleedH / 2);
                 rectOutline(px, w, h, x0, y0,
-                            x0 + tmpl.logo_w - 1, y0 + tmpl.logo_h - 1, lw, green);
+                            x0 + bleedW - 1, y0 + bleedH - 1, lw, red);
+            }
+            if (layer === 'logo' || layer === 'both') {
+                const x0 = scx - Math.floor(logoW / 2);
+                const y0 = scy - Math.floor(logoH / 2);
+                rectOutline(px, w, h, x0, y0,
+                            x0 + logoW - 1, y0 + logoH - 1, lw, green);
             }
         }
 
         return outputSize === '22x22'
-            ? cropVertical(px, w, h, SHEET_CANVAS.crop_px)
+            ? cropVertical(px, w, h, Place.pyRound(SHEET_CANVAS.crop_px * s))
             : { px, w, h };
     }
 

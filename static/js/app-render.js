@@ -104,6 +104,17 @@ const AppRender = (function () {
 
     // ---- display helpers --------------------------------------------------
 
+    /** Raw RGBA straight to a blob URL, at its own size. */
+    function rawToURL(px, w, h) {
+        const canvas = Place.toCanvas(px, w, h);
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => {
+                canvas.width = canvas.height = 0;
+                resolve(URL.createObjectURL(blob));
+            }, 'image/png');
+        });
+    }
+
     function downscaleToURL(px, w, h, onWhite) {
         const full = Place.toCanvas(px, w, h);
         const pw = Math.max(1, Math.round(w * PREVIEW_SCALE));
@@ -144,8 +155,11 @@ const AppRender = (function () {
         const key = `${logoSize}|${outputSize}|${layer}|${bleedPx}`;
         if (overlayCache.has(key)) return overlayCache.get(key);
 
-        const o = SheetRender.renderSlotOverlay(logoSize, outputSize, layer, bleedPx);
-        const url = await downscaleToURL(o.px, o.w, o.h, false);
+        // Drawn straight at preview scale. Rendering full size and shrinking
+        // afterwards threw away most of a 2 px line; this keeps every edge.
+        const o = SheetRender.renderSlotOverlay(logoSize, outputSize, layer,
+                                                bleedPx, PREVIEW_SCALE);
+        const url = await rawToURL(o.px, o.w, o.h);
         overlayCache.set(key, url);
         return url;
     }
