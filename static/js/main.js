@@ -589,7 +589,8 @@ function releaseSheetUrls() {
     currentSheetUrls = [];
 }
 
-function renderPreviewSheets(sheetUrls, overlaySrcLogo, overlaySrcBleed) {
+function renderPreviewSheets(sheetUrls, overlaySrcLogo, overlaySrcBleed,
+                             guidesSrc) {
     const sheetCount = sheetUrls.length;
     currentSheetCount = sheetCount;
 
@@ -643,6 +644,17 @@ function renderPreviewSheets(sheetUrls, overlaySrcLogo, overlaySrcBleed) {
             imagesDiv.appendChild(oBleed);
         }
 
+        // The packed sheet's own cut lines, redrawn at preview scale. They are
+        // printed either way; this is only so they are legible on screen, so
+        // there is no toggle for them.
+        if (guidesSrc) {
+            const oGuides = document.createElement("img");
+            oGuides.className = "overlay-guides";
+            oGuides.src = guidesSrc;
+            oGuides.draggable = false;
+            imagesDiv.appendChild(oGuides);
+        }
+
         wrapper.appendChild(imagesDiv);
         previewTransform.appendChild(wrapper);
     }
@@ -677,12 +689,16 @@ async function generatePreview() {
                 AppRender.overlayURL(ls, size, "logo", currentBleedPx()),
                 AppRender.overlayURL(ls, size, "bleed", currentBleedPx()),
             ]);
+        // Both layouts: the sheet's own printed line work, redrawn at preview
+        // scale because shrinking the sheet loses about half of it.
+        const guides = await AppRender.guidesURL(
+            ls, size, layoutMode.value, gapInches());
         if (token !== previewToken) {
             for (const u of urls) URL.revokeObjectURL(u);
             return;
         }
 
-        renderPreviewSheets(urls, oLogo, oBleed);
+        renderPreviewSheets(urls, oLogo, oBleed, guides);
         updateDownloadBtn();
     } catch (err) {
         showStatus(err.message || "Preview failed", "error");

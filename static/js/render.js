@@ -110,6 +110,25 @@ const SheetRender = (function () {
     const RED = [255, 0, 0, 255];
 
     // Port of _draw_overlays(). Every colour is fully opaque in the Python.
+    // ---- the scale rule -------------------------------------------------
+    //
+    // Anything that draws LINE WORK takes `sf` and draws at the size it will
+    // be shown. Never draw lines at 300 DPI and shrink the result: the preview
+    // is a quarter scale, where a 2 px line becomes half a pixel and roughly
+    // half of it vanishes. That mistake has been made three times here -- the
+    // logo outline, the bleed outline, and the packed cut lines -- and each
+    // time it looked like missing geometry rather than a rendering fault.
+    //
+    // Only photographic content may be downscaled, because only it survives.
+    // So a sheet preview is the shrunk sheet (logos) with the line work
+    // redrawn over it at preview scale by renderGuides().
+    //
+    // `lw = max(1, pyRound(n * sf))` is the pattern: a line never thins below
+    // one whole pixel. Mirror core/generator.py exactly, pyRound included.
+    //
+    // Parity covers sf = 0.25 as well as 1.0 (`overlaysx0.25|`, `slotsx0.25|`),
+    // so a new drawing routine that ignores sf fails the harness rather than
+    // reaching someone's screen.
     function drawOverlays(px, w, h, tmpl, sf) {
         const s = (v) => pyRound(v * sf);
         const lw = Math.max(1, pyRound(3 * sf));
@@ -154,14 +173,15 @@ const SheetRender = (function () {
     }
 
     // Port of generate_empty_template(): overlays only, no logos.
-    function renderEmptyTemplate(logoSize, outputSize) {
+    function renderEmptyTemplate(logoSize, outputSize, sf) {
+        const s = (sf === undefined || sf === null) ? 1.0 : sf;
         const tmpl = SHEET_TEMPLATES[logoSize];
-        const w = SHEET_CANVAS.width;
-        const h = SHEET_CANVAS.height_22x24;
+        const w = pyRound(SHEET_CANVAS.width * s);
+        const h = pyRound(SHEET_CANVAS.height_22x24 * s);
         const px = emptySheet(w, h);
-        drawOverlays(px, w, h, tmpl, 1.0);
+        drawOverlays(px, w, h, tmpl, s);
         return outputSize === '22x22'
-            ? cropVertical(px, w, h, SHEET_CANVAS.crop_px)
+            ? cropVertical(px, w, h, pyRound(SHEET_CANVAS.crop_px * s))
             : { px, w, h };
     }
 
@@ -485,6 +505,37 @@ const SheetRender = (function () {
         }
     }
 
+    /**
+     * A sheet's printed line work on its own, drawn at `sf`: jig outlines and
+     * separator in both layouts, plus registration lines for the jig layout or
+     * cut lines for the packed one.
+     *
+     * Every sheet already carries this, but the preview shows the sheet shrunk
+     * to a quarter, and fine line work does not survive that -- a 2 px dashed
+     * line averages down to a smudge, so the lines are all present in the
+     * printed file and half of them invisible on screen. The preview lays this
+     * over the shrunk sheet to put them back. Nothing here reaches print.
+     */
+    function renderGuides(logoSize, outputSize, layout, gapPx, sf) {
+        const s = (sf === undefined || sf === null) ? 1.0 : sf;
+        const tmpl = SHEET_TEMPLATES[logoSize];
+        const w = pyRound(SHEET_CANVAS.width * s);
+        const h = pyRound(SHEET_CANVAS.height_22x24 * s);
+        const px = emptySheet(w, h);
+
+        if (layout === 'packed') {
+            const grid = packedGrid(tmpl, gapPx);
+            if (!grid) return null;
+            drawPackedOverlays(px, w, h, tmpl, grid, s);
+        } else {
+            drawOverlays(px, w, h, tmpl, s);
+        }
+
+        return outputSize === '22x22'
+            ? cropVertical(px, w, h, pyRound(SHEET_CANVAS.crop_px * s))
+            : { px, w, h };
+    }
+
     function planPackedSlots(logoEntries, logoSize, gapPx) {
         const tmpl = SHEET_TEMPLATES[logoSize];
         const grid = packedGrid(tmpl, gapPx);
@@ -653,6 +704,7 @@ const SheetRender = (function () {
         packedGrid,
         packedSlotCenters,
         drawPackedOverlays,
+        renderGuides,
         planPackedSlots,
         renderPackedSheet,
         renderPackedSheets,

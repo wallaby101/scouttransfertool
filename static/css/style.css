@@ -377,15 +377,19 @@ input[type="text"]:focus {
 
 .sheet-images .preview-img,
 .sheet-images .overlay-logo,
-.sheet-images .overlay-bleed {
+.sheet-images .overlay-bleed,
+.sheet-images .overlay-guides {
     display: block;
     image-rendering: auto;
     user-select: none;
     -webkit-user-select: none;
 }
 
+/* overlay-guides is the packed cut lines redrawn at preview scale. It has no
+   toggle: those lines are printed either way, this only keeps them legible. */
 .sheet-images .overlay-logo,
-.sheet-images .overlay-bleed {
+.sheet-images .overlay-bleed,
+.sheet-images .overlay-guides {
     position: absolute;
     top: 0;
     left: 0;

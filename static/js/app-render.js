@@ -104,9 +104,17 @@ const AppRender = (function () {
 
     // ---- display helpers --------------------------------------------------
 
-    /** Raw RGBA straight to a blob URL, at its own size. */
-    function rawToURL(px, w, h) {
+    /** Raw RGBA straight to a blob URL, at its own size. `onWhite` gives it
+     *  the white ground a standalone sheet needs; an overlay leaves it off. */
+    function rawToURL(px, w, h, onWhite) {
         const canvas = Place.toCanvas(px, w, h);
+        if (onWhite) {
+            const ctx = canvas.getContext('2d');
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.globalCompositeOperation = 'source-over';
+        }
         return new Promise((resolve) => {
             canvas.toBlob((blob) => {
                 canvas.width = canvas.height = 0;
@@ -164,6 +172,21 @@ const AppRender = (function () {
         return url;
     }
 
+    /** A sheet's printed line work at preview scale, to lay over the shrunk
+     *  sheet. Both layouts: the jig one needs it as much as the packed one. */
+    async function guidesURL(logoSize, outputSize, layout, gapInches) {
+        const gapPx = Place.pyRound(parseFloat(gapInches || 0) * SHEET_CANVAS.dpi);
+        const key = `guides|${logoSize}|${outputSize}|${layout}|${gapPx}`;
+        if (overlayCache.has(key)) return overlayCache.get(key);
+
+        const g = SheetRender.renderGuides(
+            logoSize, outputSize, layout, gapPx, PREVIEW_SCALE);
+        if (!g) return null;
+        const url = await rawToURL(g.px, g.w, g.h);
+        overlayCache.set(key, url);
+        return url;
+    }
+
     /**
      * Empty template (guides only), for the initial view.
      *
@@ -172,17 +195,11 @@ const AppRender = (function () {
      * separator and the cut-line grid.
      */
     async function templateURL(logoSize, outputSize, layout, gap) {
-        if (layout === 'packed') {
-            let url = null;
-            await SheetRender.renderPackedSheets(
-                { logoEntries: [], logoSize, outputSize, gap, projectName: '' },
-                async (sheet) => {
-                    url = await downscaleToURL(sheet.px, sheet.w, sheet.h, true);
-                });
-            return url;
-        }
-        const t = SheetRender.renderEmptyTemplate(logoSize, outputSize);
-        return downscaleToURL(t.px, t.w, t.h, true);
+        const gapPx = Place.pyRound(parseFloat(gap || 0) * SHEET_CANVAS.dpi);
+        const t = SheetRender.renderGuides(
+            logoSize, outputSize, layout, gapPx, PREVIEW_SCALE);
+        if (!t) return null;
+        return rawToURL(t.px, t.w, t.h, true);
     }
 
     /**
@@ -272,6 +289,7 @@ const AppRender = (function () {
         buildOptions,
         sanitizeName,
         overlayURL,
+        guidesURL,
         templateURL,
         sheetRenderer,
         renderPreview,
