@@ -402,13 +402,13 @@ li { margin-bottom: .3rem; }
       <thead><tr><th>Logo size</th><th>Jig slots</th><th>Packed</th><th>Gain</th></tr></thead>
       <tbody>
         <tr><td>3 &times; 3&Prime;</td><td class="num-cell">30</td>
-            <td class="num-cell">36</td><td class="num-cell">+6</td></tr>
+            <td class="num-cell">42</td><td class="num-cell">+12</td></tr>
         <tr><td>3.25 &times; 1.75&Prime;</td><td class="num-cell">50</td>
-            <td class="num-cell">54</td><td class="num-cell">+4</td></tr>
+            <td class="num-cell">60</td><td class="num-cell">+10</td></tr>
         <tr><td>2.5 &times; 1.3&Prime;</td><td class="num-cell">84</td>
-            <td class="num-cell">84</td><td class="num-cell">&mdash;</td></tr>
+            <td class="num-cell">104</td><td class="num-cell">+20</td></tr>
         <tr><td>2 &times; 2&Prime;</td><td class="num-cell">64</td>
-            <td class="num-cell">64</td><td class="num-cell">&mdash;</td></tr>
+            <td class="num-cell">90</td><td class="num-cell">+26</td></tr>
       </tbody>
     </table></div>
     <p class="lede" style="font-size:.95rem">Use jig slots for normal jobs. Use packed
@@ -468,17 +468,26 @@ li { margin-bottom: .3rem; }
     <details>
       <summary>The Gap setting, and what changes in packed mode</summary>
       <div class="stack">
-        <p><strong>Gap</strong> is the space between logos and around the edge of each
-          jig half. Type it in inches; 0.25 is a sensible start. Underneath, the tool
-          tells you what that gap buys &mdash; <em>54 per sheet, 9&nbsp;&times;&nbsp;3 per
-          jig half, turned sideways to fit more</em> &mdash; and updates as you type.</p>
+        <p><strong>Packed uses the whole sheet.</strong> It keeps half an inch clear
+          around the outside &mdash; of the half sheet too, along the cut &mdash; and
+          fills everything inside. It ignores the jig entirely, because you are
+          cutting these out by hand, so there is no jig to line up with. That is
+          where the extra labels in the table come from.</p>
+        <p><strong>Gap</strong> is the space between logos and in from that margin.
+          Type it in inches; 0.25 is a sensible start. Underneath, the tool tells you
+          what that gap buys &mdash; <em>104 per sheet, 13&nbsp;&times;&nbsp;8, turned
+          sideways to fit more</em> &mdash; and updates as you type.</p>
         <ul>
           <li><strong>Bleed disappears.</strong> It exists to fill the jig&rsquo;s slot
             opening, and there are no openings here.</li>
           <li><strong>The outline checkboxes disappear.</strong> They mark jig slots;
             the dotted cut lines already show where everything is.</li>
-          <li>Logos fill the top half first, then the bottom. 20 logos at
-            3&nbsp;&times;&nbsp;3&Prime; gives 18 and 2.</li>
+          <li><strong>No blue jig boxes and no cyan line down the middle.</strong>
+            One blue outline shows the printed area; the logos run straight across
+            where that middle line used to be.</li>
+          <li>A half sheet is packed on its own, so it is not simply half of a full
+            one &mdash; and it may lay the logos the other way round. That makes no
+            difference once they are cut out.</li>
         </ul>
       </div>
     </details>

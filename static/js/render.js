@@ -243,15 +243,28 @@ const SheetRender = (function () {
      * `fullOnly` rounds the remainder up to a whole sheet instead. Some print
      * services will not take anything but a full sheet, and a job they refuse
      * costs more than the film a half-empty sheet wastes.
+     *
+     * `caps` is { full, half }: how many labels each sheet holds. This used to
+     * count in halves, because a jig full sheet is exactly two jig halves. The
+     * packed layout broke that -- it packs the sheet as one region with its own
+     * margin, so a full sheet holds more than two halves do -- and counting
+     * capacities is one rule for both layouts rather than a special case.
      */
-    function planSheetSizes(outputSize, total, perHalf, fullOnly) {
-        if (!perHalf) return [];
+    function planSheetSizes(outputSize, total, caps, fullOnly) {
+        const capFull = caps && caps.full;
+        if (!capFull) return [];
         const full = fullSizeOf(outputSize);
-        let halves = total > 0 ? Math.ceil(total / perHalf) : 2;
-        if (fullOnly && halves % 2) halves += 1;
+        const capHalf = (fullOnly || !caps.half) ? 0 : caps.half;
+
         const sizes = [];
-        for (let i = 0; i < Math.floor(halves / 2); i++) sizes.push(full);
-        if (halves % 2) sizes.push(HALF_OF[full]);
+        let remaining = Math.max(0, total);
+        while (remaining > capFull) {
+            sizes.push(full);
+            remaining -= capFull;
+        }
+        // The last sheet is a half only if what is left over fits on one.
+        if (total > 0 && capHalf && remaining <= capHalf) sizes.push(HALF_OF[full]);
+        else sizes.push(full);
         return sizes;
     }
 
@@ -261,12 +274,12 @@ const SheetRender = (function () {
      * job are no longer interchangeable, so nothing may assume a single
      * per-sheet capacity.
      */
-    function sheetsFromSizes(sizes, centersFor) {
+    function sheetsFromSizes(sizes, sheetFor) {
         let cursor = 0;
         return sizes.map((size) => {
-            const centers = centersFor(size);
-            const sheet = { outputSize: size, centers, start: cursor };
-            cursor += centers.length;
+            const sheet = Object.assign({ outputSize: size }, sheetFor(size));
+            sheet.start = cursor;
+            cursor += sheet.centers.length;
             return sheet;
         });
     }
@@ -361,7 +374,11 @@ const SheetRender = (function () {
      */
     function planSlots(logoEntries, logoSize, outputSize, fullOnly) {
         const tmpl = SHEET_TEMPLATES[logoSize];
-        const perHalf = slotCentersFor(tmpl, HALF_OF[fullSizeOf(outputSize)]).length;
+        const full = fullSizeOf(outputSize);
+        const caps = {
+            full: slotCentersFor(tmpl, full).length,
+            half: slotCentersFor(tmpl, HALF_OF[full]).length,
+        };
         const flatSlots = [];
 
         logoEntries.forEach((entry, entryIdx) => {
@@ -375,10 +392,10 @@ const SheetRender = (function () {
         });
 
         const sheets = sheetsFromSizes(
-            planSheetSizes(outputSize, flatSlots.length, perHalf, fullOnly),
-            (size) => slotCentersFor(tmpl, size));
+            planSheetSizes(outputSize, flatSlots.length, caps, fullOnly),
+            (size) => ({ centers: slotCentersFor(tmpl, size) }));
 
-        return { sheets, flatSlots, perHalf, numSheets: sheets.length };
+        return { sheets, flatSlots, caps, numSheets: sheets.length };
     }
 
     /**
@@ -498,8 +515,15 @@ const SheetRender = (function () {
     // ---- packed layout ----------------------------------------------------
 
     // An alternative to the jig slots: pack logos as tightly as the size allows
-    // inside each jig half, with a chosen gap, and print a dotted cut line in
+    // across the whole sheet, with a chosen gap, and print a dotted cut line in
     // every gap so the sheet can be cut up by hand.
+    //
+    // This packed inside the two jig halves until 2026-10-29. Those halves are
+    // the jig's and the pressure plate's, and there is no jig here -- the
+    // transfers are cut out by hand and pressed one at a time -- so the only
+    // boundary that means anything is the edge of the film. Packing the sheet
+    // as one region recovers the dead band at the separator and the leftover
+    // at the foot of each half. See PLAN_packed_area.md.
     //
     // Mirrors packed_grid() / packed_slot_centers() / _draw_packed_overlays()
     // and generate_packed_sheet() in core/generator.py; see
@@ -509,14 +533,36 @@ const SheetRender = (function () {
     const CUT_DASH = 6;   // finer than the registration dashes, so it reads dotted
     const CUT_GAP = 6;
 
+    // Kept clear around the outside of every packed sheet, full or half. The
+    // jig's 1" came from the production DXF; this is the film's own margin, so
+    // it applies to the cut edge of a half sheet as much as to the sheet edge.
+    const PACKED_MARGIN = 150;   // 0.5" at 300 DPI
+
     /**
-     * The grid for one jig half. Tries the logo both ways round and keeps
+     * The packed region for an output size, in canvas coordinates: the rows
+     * that size keeps, inset by PACKED_MARGIN on all four sides.
+     *
+     * A half sheet gets its own margin along the cut, so its region is NOT
+     * half of the full one and its capacity is not half the full capacity.
+     */
+    function packedRegion(tmpl, outputSize) {
+        const box = cropBox(tmpl, outputSize, 1.0);
+        const top = box ? box[0] : 0;
+        const bottom = box ? box[1] : SHEET_CANVAS.height_22x24;
+        return [
+            PACKED_MARGIN,
+            top + PACKED_MARGIN,
+            SHEET_CANVAS.width - PACKED_MARGIN,
+            bottom - PACKED_MARGIN,
+        ];
+    }
+
+    /**
+     * The grid for one packed region. Tries the logo both ways round and keeps
      * whichever fits more, preferring upright on a tie. Null when none fit.
      */
-    function packedGrid(tmpl, gapPx, halves) {
-        const nHalves = (halves === undefined || halves === null)
-            ? tmpl.jig_outlines.length : halves;
-        const [x0, y0, x1, y1] = tmpl.jig_outlines[0];
+    function packedGrid(tmpl, gapPx, region) {
+        const [x0, y0, x1, y1] = region;
         const areaW = x1 - x0;
         const areaH = y1 - y0;
 
@@ -533,15 +579,14 @@ const SheetRender = (function () {
             const rows = Math.floor((usableH + gapPx) / (lh + gapPx));
             if (cols < 1 || rows < 1) continue;
 
-            const perHalf = cols * rows;
+            const perSheet = cols * rows;
             // Strictly greater, so upright wins a tie.
-            if (best === null || perHalf > best.per_half) {
+            if (best === null || perSheet > best.per_sheet) {
                 const gridW = cols * lw + (cols - 1) * gapPx;
                 const gridH = rows * lh + (rows - 1) * gapPx;
                 best = {
                     turned, logo_w: lw, logo_h: lh, cols, rows,
-                    per_half: perHalf,
-                    per_sheet: perHalf * nHalves,
+                    per_sheet: perSheet,
                     grid_w: gridW, grid_h: gridH,
                     // Centred, so the leftover is split rather than all landing
                     // on the right and bottom edges.
@@ -554,62 +599,70 @@ const SheetRender = (function () {
         return best;
     }
 
-    /**
-     * Every logo position on a sheet, first half then second. A half sheet
-     * carries the top jig half only, so it stops after the first.
-     */
-    function packedSlotCenters(tmpl, grid, halves) {
-        const nHalves = (halves === undefined || halves === null)
-            ? tmpl.jig_outlines.length : halves;
+    /** Every logo position in a packed region, row by row. */
+    function packedSlotCenters(region, grid) {
+        const ox = region[0] + grid.pad_x;
+        const oy = region[1] + grid.pad_y;
         const centers = [];
-        for (const [x0, y0] of tmpl.jig_outlines.slice(0, nHalves)) {
-            const ox = x0 + grid.pad_x;
-            const oy = y0 + grid.pad_y;
-            for (let r = 0; r < grid.rows; r++) {
-                for (let c = 0; c < grid.cols; c++) {
-                    centers.push([
-                        ox + c * (grid.logo_w + grid.gap) + Math.floor(grid.logo_w / 2),
-                        oy + r * (grid.logo_h + grid.gap) + Math.floor(grid.logo_h / 2),
-                    ]);
-                }
+        for (let r = 0; r < grid.rows; r++) {
+            for (let c = 0; c < grid.cols; c++) {
+                centers.push([
+                    ox + c * (grid.logo_w + grid.gap) + Math.floor(grid.logo_w / 2),
+                    oy + r * (grid.logo_h + grid.gap) + Math.floor(grid.logo_h / 2),
+                ]);
             }
         }
         return centers;
     }
 
-    // Jig outlines, separator and cut lines. No registration marks: those mark
-    // slot positions, which mean nothing in this layout.
-    function drawPackedOverlays(px, w, h, tmpl, grid, sf) {
+    /**
+     * The packed region's outline and the cut lines.
+     *
+     * No jig outlines and no separator: the grid now crosses where the
+     * separator used to be, so drawing it would mark a boundary that nothing
+     * respects. No registration marks either -- they mark slot positions,
+     * which mean nothing in this layout.
+     */
+    function drawPackedOverlays(px, w, h, region, grid, sf) {
         const s = (v) => pyRound(v * sf);
         const lw = Math.max(1, pyRound(3 * sf));
         const lw2 = Math.max(1, pyRound(2 * sf));
 
-        for (const [x0, y0, x1, y1] of tmpl.jig_outlines) {
-            rectOutline(px, w, h, s(x0), s(y0), s(x1), s(y1), lw, BLUE);
-        }
-        hLine(px, w, h, s(tmpl.separator_y), 0, s(SHEET_CANVAS.width), lw2, CYAN);
+        rectOutline(px, w, h, s(region[0]), s(region[1]),
+                    s(region[2]), s(region[3]), lw, BLUE);
 
         const halfGap = Math.floor(grid.gap / 2);
-        for (const [x0, y0] of tmpl.jig_outlines) {
-            const ox = x0 + grid.pad_x;
-            const oy = y0 + grid.pad_y;
-            const top = oy - halfGap;
-            const bottom = oy + grid.grid_h + halfGap;
-            const left = ox - halfGap;
-            const right = ox + grid.grid_w + halfGap;
+        const ox = region[0] + grid.pad_x;
+        const oy = region[1] + grid.pad_y;
+        const top = oy - halfGap;
+        const bottom = oy + grid.grid_h + halfGap;
+        const left = ox - halfGap;
+        const right = ox + grid.grid_w + halfGap;
 
-            // cols + 1 verticals and rows + 1 horizontals, so every logo is boxed.
-            for (let c = 0; c <= grid.cols; c++) {
-                const x = ox - halfGap + c * (grid.logo_w + grid.gap);
-                dashedLine(px, w, h, s(x), s(top), s(x), s(bottom),
-                           lw2, CUT_DASH, CUT_GAP, CUT_LINE);
-            }
-            for (let r = 0; r <= grid.rows; r++) {
-                const y = oy - halfGap + r * (grid.logo_h + grid.gap);
-                dashedLine(px, w, h, s(left), s(y), s(right), s(y),
-                           lw2, CUT_DASH, CUT_GAP, CUT_LINE);
-            }
+        // cols + 1 verticals and rows + 1 horizontals, so every logo is boxed.
+        for (let c = 0; c <= grid.cols; c++) {
+            const x = ox - halfGap + c * (grid.logo_w + grid.gap);
+            dashedLine(px, w, h, s(x), s(top), s(x), s(bottom),
+                       lw2, CUT_DASH, CUT_GAP, CUT_LINE);
         }
+        for (let r = 0; r <= grid.rows; r++) {
+            const y = oy - halfGap + r * (grid.logo_h + grid.gap);
+            dashedLine(px, w, h, s(left), s(y), s(right), s(y),
+                       lw2, CUT_DASH, CUT_GAP, CUT_LINE);
+        }
+    }
+
+    /** What a packed full sheet and a packed half sheet each hold. */
+    function packedCapacities(tmpl, gapPx, outputSize) {
+        const full = fullSizeOf(outputSize);
+        const gridFull = packedGrid(tmpl, gapPx, packedRegion(tmpl, full));
+        const gridHalf = packedGrid(tmpl, gapPx, packedRegion(tmpl, HALF_OF[full]));
+        return {
+            gridFull,
+            gridHalf,
+            full: gridFull ? gridFull.per_sheet : 0,
+            half: gridHalf ? gridHalf.per_sheet : 0,
+        };
     }
 
     /**
@@ -631,9 +684,10 @@ const SheetRender = (function () {
         const px = emptySheet(w, h);
 
         if (layout === 'packed') {
-            const grid = packedGrid(tmpl, gapPx);
+            const region = packedRegion(tmpl, outputSize);
+            const grid = packedGrid(tmpl, gapPx, region);
             if (!grid) return null;
-            drawPackedOverlays(px, w, h, tmpl, grid, s);
+            drawPackedOverlays(px, w, h, region, grid, s);
         } else {
             drawOverlays(px, w, h, tmpl, s);
         }
@@ -643,9 +697,8 @@ const SheetRender = (function () {
 
     function planPackedSlots(logoEntries, logoSize, gapPx, outputSize, fullOnly) {
         const tmpl = SHEET_TEMPLATES[logoSize];
-        // The grid is per jig half either way; a full sheet is two of it.
-        const grid = packedGrid(tmpl, gapPx, 2);
-        if (!grid) return null;
+        const caps = packedCapacities(tmpl, gapPx, outputSize);
+        if (!caps.gridFull) return null;
 
         const flatSlots = [];
         logoEntries.forEach((entry, entryIdx) => {
@@ -658,14 +711,24 @@ const SheetRender = (function () {
         });
 
         const sheets = sheetsFromSizes(
-            planSheetSizes(outputSize, flatSlots.length, grid.per_half, fullOnly),
-            (size) => packedSlotCenters(tmpl, grid, sheetHalves(size)));
+            planSheetSizes(outputSize, flatSlots.length, caps, fullOnly),
+            (size) => {
+                // A half sheet has its own margin along the cut, so it has its
+                // own region and its own grid -- not a slice of the full one.
+                const grid = sheetHalves(size) === 2 ? caps.gridFull : caps.gridHalf;
+                const region = packedRegion(tmpl, size);
+                return { grid, region, centers: packedSlotCenters(region, grid) };
+            });
 
-        return { grid, sheets, flatSlots, numSheets: sheets.length };
+        return { caps, sheets, flatSlots, numSheets: sheets.length };
     }
 
     // No bleed here: there is no slot opening for it to fill.
-    function preparePackedEntries(logoEntries, logoSize, grid) {
+    // Prepared for one orientation. A half sheet often packs more with the
+    // logo turned the other way from the full sheet, and that costs nothing
+    // real: the transfer is cut out before it is pressed, so which way it lay
+    // on the film does not reach the bag.
+    function preparePackedEntries(logoEntries, logoSize, turned) {
         const tmpl = SHEET_TEMPLATES[logoSize];
         return logoEntries.map((entry) => {
             const prepared = Place.prepareLogo(entry.px, entry.w, entry.h, tmpl, 0, {
@@ -675,7 +738,7 @@ const SheetRender = (function () {
                 rotation: entry.rotation,
                 applyTemplateRotation: false,
             });
-            if (!grid.turned) return prepared;
+            if (!turned) return prepared;
             const r = Place.rotateExpand(prepared.px, prepared.w, prepared.h, 90);
             return { px: r.px, w: r.w, h: r.h, inexact: prepared.inexact };
         });
@@ -717,9 +780,14 @@ const SheetRender = (function () {
             }
         }
 
-        drawPackedOverlays(px, w, h, tmpl, plan.grid, 1.0);
+        drawPackedOverlays(px, w, h, sheet.region, sheet.grid, 1.0);
+        // One label, in the packed margin, centred on the sheet this will be
+        // cropped to: there are no halves here to identify separately.
         SheetText.drawProjectName(px, w, h,
-            sheetLabel(projectName || '', sheetNum, plan.numSheets));
+            sheetLabel(projectName || '', sheetNum, plan.numSheets),
+            { marginW: PACKED_MARGIN,
+              bands: [cropBox(tmpl, sheet.outputSize, 1.0)
+                      || [0, SHEET_CANVAS.height_22x24]] });
 
         // As in the jig layout: the crop is what takes the second jig half off
         // a half sheet, line work and all.
@@ -740,10 +808,20 @@ const SheetRender = (function () {
             throw new Error(
                 `A gap of ${opts.gap}" leaves no room for a logo this size.`);
         }
-        const prepared = preparePackedEntries(opts.logoEntries, opts.logoSize, plan.grid);
+        // One prepared set per orientation the job actually uses, built on
+        // first use: a job of full sheets only ever builds one.
+        const preparedBy = new Map();
+        const preparedFor = (turned) => {
+            if (!preparedBy.has(turned)) {
+                preparedBy.set(turned, preparePackedEntries(
+                    opts.logoEntries, opts.logoSize, turned));
+            }
+            return preparedBy.get(turned);
+        };
 
         for (let n = 0; n < plan.numSheets; n++) {
-            const sheet = renderPackedSheet(opts, n, plan, prepared);
+            const sheet = renderPackedSheet(
+                opts, n, plan, preparedFor(plan.sheets[n].grid.turned));
             // eslint-disable-next-line no-await-in-loop
             await onSheet(sheet, n, plan.numSheets);
             sheet.px = null;
@@ -814,7 +892,10 @@ const SheetRender = (function () {
         sheetLabel,
         renderSheet,
         renderSheets,
+        PACKED_MARGIN,
+        packedRegion,
         packedGrid,
+        packedCapacities,
         packedSlotCenters,
         drawPackedOverlays,
         renderGuides,

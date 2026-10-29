@@ -238,23 +238,29 @@ const SheetText = (function () {
 
     /**
      * Port of _draw_project_name(). Draws the label rotated 90 degrees CCW in
-     * the ~1" left margin of each jig half, so each half stays identified once
-     * the sheet is cut and the label survives the 22x22 crop.
+     * the left margin, so the sheet stays identified once it is cut and the
+     * label survives the 22x22 crop.
+     *
+     * Defaults are the jig layout's: a 1" margin and one label per jig half,
+     * so each half is identified on its own. The packed layout has no halves
+     * and only a 0.5" margin, so it passes its own `marginW` and a single band
+     * covering the sheet it will be cropped to.
      *
      * Mutates sheetPx in place, as the Python mutates its canvas.
      */
-    function drawProjectName(sheetPx, sheetW, sheetH, name) {
+    function drawProjectName(sheetPx, sheetW, sheetH, name, opts) {
         if (!name) return;
+        const marginW = (opts && opts.marginW) || 300;
+        const bands = (opts && opts.bands) || [[300, 3600], [3600, 6900]];
 
         const size = Math.max(8, Place.pyRound(42));
         const bmp = renderTextBitmap(name, size, 'Helvetica', 'regular',
                                      [0, 0, 0, 255]);
         const rot = Place.rotateExpand(bmp.px, bmp.w, bmp.h, 90);
 
-        const marginW = 300;
-        const pasteX = Math.floor((marginW - rot.w) / 2);
+        const pasteX = Math.max(0, Math.floor((marginW - rot.w) / 2));
 
-        for (const [yTop, yBot] of [[300, 3600], [3600, 6900]]) {
+        for (const [yTop, yBot] of bands) {
             const halfH = yBot - yTop;
             const pasteY = yTop + Math.floor((halfH - rot.h) / 2);
             Place.alphaComposite(sheetPx, sheetW, sheetH, rot.px, rot.w, rot.h,

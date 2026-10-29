@@ -70,34 +70,39 @@ function gapInches() {
     return Number.isFinite(v) && v >= 0 ? v : 0;
 }
 
-// Everything fills in jig halves: two of them are a full sheet, one left over
-// is a half sheet. Sheet Size names the full sheet, so the per-sheet figures
-// below are for that, and the breakdown says what the job actually becomes.
+// Sheet Size names the full sheet, so the per-sheet figures below are for
+// that, and the breakdown says what the job actually becomes. Capacities are
+// asked for as a pair, because a packed full sheet is no longer two packed
+// halves -- it is one region with its own margin.
 
-// The packed grid for the current settings, or null when nothing fits.
+// The packed grid for a full sheet at the current settings, or null when
+// nothing fits.
 function currentPackedGrid() {
     const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
-    return SheetRender.packedGrid(SHEET_TEMPLATES[logoSizeSelect.value], gapPx, 2);
+    const tmpl = SHEET_TEMPLATES[logoSizeSelect.value];
+    return SheetRender.packedCapacities(tmpl, gapPx, outputSize.value).gridFull;
 }
 
-// Labels per jig half for a template under the current layout.
-function perHalfFor(tmpl) {
+// What a full and a half sheet hold for a template under the current layout.
+function capacitiesFor(tmpl) {
     if (isPacked()) {
         const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
-        const g = SheetRender.packedGrid(tmpl, gapPx, 2);
-        return g ? g.per_half : 0;
+        return SheetRender.packedCapacities(tmpl, gapPx, outputSize.value);
     }
-    const half = SheetRender.HALF_OF[SheetRender.fullSizeOf(outputSize.value)];
-    return SheetRender.slotCentersFor(tmpl, half).length;
+    const full = SheetRender.fullSizeOf(outputSize.value);
+    return {
+        full: SheetRender.slotCentersFor(tmpl, full).length,
+        half: SheetRender.slotCentersFor(tmpl, SheetRender.HALF_OF[full]).length,
+    };
 }
 
-function currentPerHalf() {
-    return perHalfFor(SHEET_TEMPLATES[logoSizeSelect.value]);
+function currentCapacities() {
+    return capacitiesFor(SHEET_TEMPLATES[logoSizeSelect.value]);
 }
 
-// Labels per full sheet -- two halves.
+// Labels per full sheet.
 function getMaxSlots() {
-    return currentPerHalf() * 2;
+    return currentCapacities().full;
 }
 
 /**
@@ -108,7 +113,7 @@ function getMaxSlots() {
 function sheetBreakdown() {
     const total = getTotalQuantity();
     const sizes = SheetRender.planSheetSizes(
-        outputSize.value, total, currentPerHalf(), fullSheetsOnly.checked);
+        outputSize.value, total, currentCapacities(), fullSheetsOnly.checked);
     const full = sizes.filter(s => SheetRender.sheetHalves(s) === 2).length;
     return { total, sizes, full, half: sizes.length - full };
 }
@@ -145,9 +150,9 @@ function syncLayoutControls() {
         const tmpl = SHEET_TEMPLATES[opt.value];
         // Strip any trailing "(... per sheet)" so this is safe to re-run.
         const base = opt.textContent.replace(/\s*\([^)]*\)\s*$/, "");
-        const ph = perHalfFor(tmpl);
-        opt.textContent = ph
-            ? `${base} (${ph * 2} per sheet)`
+        const caps = capacitiesFor(tmpl);
+        opt.textContent = caps.full
+            ? `${base} (${caps.full} per sheet)`
             : `${base} (does not fit)`;
     }
 
@@ -161,8 +166,9 @@ function syncLayoutControls() {
         return;
     }
     gapFit.classList.remove("warn");
+    // The grid is the whole sheet now, not a jig half.
     gapFit.textContent =
-        `${grid.per_sheet} per sheet — ${grid.cols} x ${grid.rows} per jig half`
+        `${grid.per_sheet} per sheet — ${grid.cols} x ${grid.rows}`
         + (grid.turned ? ", turned sideways to fit more" : "");
 }
 
@@ -525,14 +531,14 @@ function renderServicePanel() {
 // limit, and its denominator moved as sheets were added.
 function updateSlotCounter() {
     const { total, full, half } = sheetBreakdown();
-    const perHalf = currentPerHalf();
-    if (!perHalf) {
+    const caps = currentCapacities();
+    if (!caps.full) {
         slotCounterEl.textContent = "No logos fit at this gap";
         slotCounterEl.classList.remove("at-capacity");
         return;
     }
     if (total === 0) {
-        slotCounterEl.textContent = `0 labels — ${perHalf * 2} per full sheet`;
+        slotCounterEl.textContent = `0 labels — ${caps.full} per full sheet`;
     } else {
         const parts = [];
         if (full) parts.push(plural(full, "full sheet"));
