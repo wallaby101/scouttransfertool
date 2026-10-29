@@ -972,12 +972,12 @@ input[type="text"]:focus {
     line-height: 1.4;
 }
 
-#gap-fit {
+#cut-fit {
     margin-top: 10px;
     opacity: 1;
 }
 
-#gap-fit.warn {
+#cut-fit.warn {
     color: #ff8f8f;
 }
 

@@ -104,17 +104,13 @@
                                 <option value="0.02">0.02"</option>
                             </select>
                         </div>
-                        <div class="form-group" id="gap-group" hidden>
-                            <label for="gap">Gap (in)</label>
-                            <input type="number" id="gap" name="gap"
-                                   value="0.25" min="0" max="2" step="0.05">
+                        <div class="form-group" id="cut-group" hidden>
+                            <label for="cut_margin">Cut margin (in)</label>
+                            <input type="number" id="cut_margin" name="cut_margin"
+                                   value="0.125" min="0" max="1" step="0.0625">
                         </div>
                     </div>
-                    <div id="gap-fit" class="field-note" hidden></div>
-                    <div id="bleed-note" class="field-note" hidden>
-                        Bleed is not used in the packed layout &mdash; it fills
-                        the jig&rsquo;s slot opening, and there are no slots here.
-                    </div>
+                    <div id="cut-fit" class="field-note" hidden></div>
                 </section>
             </form>
 

@@ -86,13 +86,14 @@ const AppRender = (function () {
         return {
             logoEntries,
             logoSize: ui.logoSize,
-            // Bleed fills the jig's slot opening, so the packed layout forces
-            // it to zero rather than letting a stale value shrink the gap.
-            bleed: ui.layout === 'packed' ? '0.00' : ui.bleed,
+            // Both layouts now: bleed reaches past the label edge whether the
+            // label is pressed through the jig or cut out by hand.
+            bleed: ui.bleed,
             outputSize: ui.outputSize,
             projectName: ui.projectName || '',
             layout: ui.layout || 'jig',
-            gap: ui.gap === undefined ? 0.25 : ui.gap,
+            // Packed only: label edge to cut line, on every side.
+            cutMargin: ui.cutMargin === undefined ? 0.125 : ui.cutMargin,
             // Some print services take nothing but a full sheet, so the
             // remainder rounds up instead of being cut to a half.
             fullSheetsOnly: Boolean(ui.fullSheetsOnly),
@@ -162,14 +163,26 @@ const AppRender = (function () {
     }
 
     /** Slot outline overlay, cached per template/size/layer. */
-    async function overlayURL(logoSize, outputSize, layer, bleedPx) {
-        const key = `${logoSize}|${outputSize}|${layer}|${bleedPx}`;
+    /**
+     * Slot outline overlay, cached per template/size/layer/bleed -- and, for
+     * the packed layout, per cut margin, since that moves every label.
+     */
+    async function overlayURL(logoSize, outputSize, layer, bleedPx, layout, cutInches) {
+        const packed = layout === 'packed';
+        const cutPx = packed
+            ? Place.pyRound(parseFloat(cutInches || 0) * SHEET_CANVAS.dpi) : null;
+        const key = `${packed ? 'packed' : 'jig'}|${logoSize}|${outputSize}`
+            + `|${layer}|${bleedPx}|${cutPx}`;
         if (overlayCache.has(key)) return overlayCache.get(key);
 
         // Drawn straight at preview scale. Rendering full size and shrinking
         // afterwards threw away most of a 2 px line; this keeps every edge.
-        const o = SheetRender.renderSlotOverlay(logoSize, outputSize, layer,
-                                                bleedPx, PREVIEW_SCALE);
+        const o = packed
+            ? SheetRender.renderPackedSlotOverlay(logoSize, outputSize, layer,
+                                                  bleedPx, cutPx, PREVIEW_SCALE)
+            : SheetRender.renderSlotOverlay(logoSize, outputSize, layer,
+                                            bleedPx, PREVIEW_SCALE);
+        if (!o) return null;
         const url = await rawToURL(o.px, o.w, o.h);
         overlayCache.set(key, url);
         return url;
@@ -177,13 +190,13 @@ const AppRender = (function () {
 
     /** A sheet's printed line work at preview scale, to lay over the shrunk
      *  sheet. Both layouts: the jig one needs it as much as the packed one. */
-    async function guidesURL(logoSize, outputSize, layout, gapInches) {
-        const gapPx = Place.pyRound(parseFloat(gapInches || 0) * SHEET_CANVAS.dpi);
-        const key = `guides|${logoSize}|${outputSize}|${layout}|${gapPx}`;
+    async function guidesURL(logoSize, outputSize, layout, cutInches) {
+        const cutPx = Place.pyRound(parseFloat(cutInches || 0) * SHEET_CANVAS.dpi);
+        const key = `guides|${logoSize}|${outputSize}|${layout}|${cutPx}`;
         if (overlayCache.has(key)) return overlayCache.get(key);
 
         const g = SheetRender.renderGuides(
-            logoSize, outputSize, layout, gapPx, PREVIEW_SCALE);
+            logoSize, outputSize, layout, cutPx, PREVIEW_SCALE);
         if (!g) return null;
         const url = await rawToURL(g.px, g.w, g.h);
         overlayCache.set(key, url);
@@ -194,13 +207,13 @@ const AppRender = (function () {
      * Empty template (guides only), for the initial view.
      *
      * The packed layout has no fixed slots, so its empty sheet is simply a
-     * packed render with nothing in it — which draws the jig outlines, the
-     * separator and the cut-line grid.
+     * packed render with nothing in it — which draws the region outline and
+     * the cut-line grid.
      */
-    async function templateURL(logoSize, outputSize, layout, gap) {
-        const gapPx = Place.pyRound(parseFloat(gap || 0) * SHEET_CANVAS.dpi);
+    async function templateURL(logoSize, outputSize, layout, cutInches) {
+        const cutPx = Place.pyRound(parseFloat(cutInches || 0) * SHEET_CANVAS.dpi);
         const t = SheetRender.renderGuides(
-            logoSize, outputSize, layout, gapPx, PREVIEW_SCALE);
+            logoSize, outputSize, layout, cutPx, PREVIEW_SCALE);
         if (!t) return null;
         return rawToURL(t.px, t.w, t.h, true);
     }

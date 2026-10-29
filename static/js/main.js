@@ -16,11 +16,10 @@ const fullSheetsOnly = document.getElementById("full_sheets_only");
 const sheetSizeNote = document.getElementById("sheet-size-note");
 const bleedSelect = document.getElementById("bleed");
 const layoutMode = document.getElementById("layout_mode");
-const gapInput = document.getElementById("gap");
-const gapGroup = document.getElementById("gap-group");
-const gapFit = document.getElementById("gap-fit");
+const cutInput = document.getElementById("cut_margin");
+const cutGroup = document.getElementById("cut-group");
+const cutFit = document.getElementById("cut-fit");
 const bleedGroup = document.getElementById("bleed-group");
-const bleedNote = document.getElementById("bleed-note");
 const serviceSelect = document.getElementById("print_service");
 const serviceFindings = document.getElementById("service-findings");
 const serviceSummary = document.getElementById("service-summary");
@@ -65,8 +64,11 @@ function isPacked() {
     return layoutMode.value === "packed";
 }
 
-function gapInches() {
-    const v = parseFloat(gapInput.value);
+// Packed only: the distance from each label's edge to its cut line, on every
+// side. Every piece cut out is the label plus twice this, which is where the
+// sewing buffer lives. See PLAN_cut_margin.md.
+function cutMarginInches() {
+    const v = parseFloat(cutInput.value);
     return Number.isFinite(v) && v >= 0 ? v : 0;
 }
 
@@ -78,16 +80,16 @@ function gapInches() {
 // The packed grid for a full sheet at the current settings, or null when
 // nothing fits.
 function currentPackedGrid() {
-    const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
+    const cutPx = Place.pyRound(cutMarginInches() * SHEET_CANVAS.dpi);
     const tmpl = SHEET_TEMPLATES[logoSizeSelect.value];
-    return SheetRender.packedCapacities(tmpl, gapPx, outputSize.value).gridFull;
+    return SheetRender.packedCapacities(tmpl, cutPx, outputSize.value).gridFull;
 }
 
 // What a full and a half sheet hold for a template under the current layout.
 function capacitiesFor(tmpl) {
     if (isPacked()) {
-        const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
-        return SheetRender.packedCapacities(tmpl, gapPx, outputSize.value);
+        const cutPx = Place.pyRound(cutMarginInches() * SHEET_CANVAS.dpi);
+        return SheetRender.packedCapacities(tmpl, cutPx, outputSize.value);
     }
     const full = SheetRender.fullSizeOf(outputSize.value);
     return {
@@ -122,27 +124,22 @@ function plural(n, word) {
     return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-// Swap the bleed and gap controls, and show how many fit per sheet.
+// Show the cut margin in the packed layout, and how many fit per sheet.
 // The note under Sheet Size states the rule in force, because the two
 // settings produce visibly different jobs from the same logos.
 function syncSheetSizeNote() {
     sheetSizeNote.textContent = fullSheetsOnly.checked
         ? "Every sheet is a full sheet, even when the last one is half empty."
-        : "The full sheet. A job that ends on one jig half gets a half sheet"
-          + " for the remainder.";
+        : "The full sheet. A job that would leave the last sheet half empty"
+          + " gets a half sheet instead.";
 }
 
 function syncLayoutControls() {
     const packed = isPacked();
-    // Gap takes bleed's place in the row rather than sitting beside it: three
-    // controls do not fit, and bleed means nothing in this layout anyway.
-    gapGroup.hidden = !packed;
-    gapFit.hidden = !packed;
-    bleedNote.hidden = !packed;
-    bleedGroup.hidden = packed;
-    bleedSelect.disabled = packed;
-    // Those outlines mark jig slots, so they do nothing in the packed layout.
-    outlineToggles.hidden = packed;
+    // Bleed and the outline toggles work the same in both layouts; the packed
+    // one adds its cut margin beside bleed.
+    cutGroup.hidden = !packed;
+    cutFit.hidden = !packed;
 
     // The per-sheet counts baked into the Logo Size labels are the jig's. In
     // packed mode they are wrong, and would contradict the fit readout below.
@@ -160,16 +157,27 @@ function syncLayoutControls() {
 
     const grid = currentPackedGrid();
     if (!grid) {
-        gapFit.textContent =
-            `A ${gapInches()}" gap leaves no room for a logo this size.`;
-        gapFit.classList.add("warn");
+        cutFit.textContent =
+            `A ${cutMarginInches()}" cut margin leaves no room for a logo this size.`;
+        cutFit.classList.add("warn");
         return;
     }
-    gapFit.classList.remove("warn");
-    // The grid is the whole sheet now, not a jig half.
-    gapFit.textContent =
+    // Said, not blocked: someone may be passing through a small value on the
+    // way to another one.
+    const bleedIn = parseFloat(bleedSelect.value) || 0;
+    const margin = cutMarginInches();
+    if (margin < bleedIn) {
+        cutFit.textContent = `The ${bleedIn.toFixed(2)}" bleed reaches past a`
+            + ` ${margin}" cut margin, so the print runs into the next label.`;
+        cutFit.classList.add("warn");
+        return;
+    }
+    cutFit.classList.remove("warn");
+    const piece = (n) => (n / SHEET_CANVAS.dpi).toFixed(2).replace(/\.?0+$/, "");
+    cutFit.textContent =
         `${grid.per_sheet} per sheet — ${grid.cols} x ${grid.rows}`
-        + (grid.turned ? ", turned sideways to fit more" : "");
+        + (grid.turned ? ", turned sideways" : "")
+        + `. Each piece cut out is ${piece(grid.cell_w)} x ${piece(grid.cell_h)}".`;
 }
 
 function getTotalQuantity() {
@@ -367,9 +375,7 @@ function logoPrintResolution(entry) {
     if (!meta || !meta.width || !meta.height) return null;
 
     const tmpl = SHEET_TEMPLATES[logoSizeSelect.value];
-    const bleedPx = isPacked()
-        ? 0
-        : Place.pyRound(parseFloat(bleedSelect.value) * SHEET_CANVAS.dpi);
+    const bleedPx = Place.pyRound(parseFloat(bleedSelect.value) * SHEET_CANVAS.dpi);
     const st = entry.editorState;
 
     // prepareLogo rotates by -rotation before fitting, so measure the same box.
@@ -533,7 +539,7 @@ function updateSlotCounter() {
     const { total, full, half } = sheetBreakdown();
     const caps = currentCapacities();
     if (!caps.full) {
-        slotCounterEl.textContent = "No logos fit at this gap";
+        slotCounterEl.textContent = "No logos fit at this cut margin";
         slotCounterEl.classList.remove("at-capacity");
         return;
     }
@@ -631,7 +637,7 @@ function currentRenderOptions() {
         outputSize: outputSize.value,
         projectName: projectNameInput.value,
         layout: layoutMode.value,
-        gap: gapInches(),
+        cutMargin: cutMarginInches(),
         fullSheetsOnly: fullSheetsOnly.checked,
     });
 }
@@ -751,20 +757,20 @@ async function generatePreview() {
         const sheets = [];
         for (let i = 0; i < urls.length; i++) {
             const size = sizes[i] || sizes[sizes.length - 1];
-            // Those outlines mark jig slots; the packed layout has none, and
-            // its cut lines already show where every logo sits.
-            const [oLogo, oBleed] = isPacked()
-                ? [null, null]
-                // eslint-disable-next-line no-await-in-loop
-                : await Promise.all([
-                    AppRender.overlayURL(ls, size, "logo", currentBleedPx()),
-                    AppRender.overlayURL(ls, size, "bleed", currentBleedPx()),
-                ]);
+            // Logo and bleed outlines in both layouts, at this sheet's own
+            // positions -- a packed half sheet may be turned the other way.
+            // eslint-disable-next-line no-await-in-loop
+            const [oLogo, oBleed] = await Promise.all([
+                AppRender.overlayURL(ls, size, "logo", currentBleedPx(),
+                                     layoutMode.value, cutMarginInches()),
+                AppRender.overlayURL(ls, size, "bleed", currentBleedPx(),
+                                     layoutMode.value, cutMarginInches()),
+            ]);
             // Both layouts: the sheet's own printed line work, redrawn at
             // preview scale because shrinking the sheet loses about half of it.
             // eslint-disable-next-line no-await-in-loop
             const guides = await AppRender.guidesURL(
-                ls, size, layoutMode.value, gapInches());
+                ls, size, layoutMode.value, cutMarginInches());
             sheets.push({ url: urls[i], oLogo, oBleed, guides });
         }
         if (token !== previewToken) {
@@ -809,14 +815,13 @@ async function loadTemplate() {
 
     currentSheetCount = 1;
 
-    const packed = isPacked();
-    const [tplUrl, oLogoUrl, oBleedUrl] = packed
-        ? [await AppRender.templateURL(ls, size, "packed", gapInches()), null, null]
-        : await Promise.all([
-            AppRender.templateURL(ls, size, "jig"),
-            AppRender.overlayURL(ls, size, "logo", currentBleedPx()),
-            AppRender.overlayURL(ls, size, "bleed", currentBleedPx()),
-        ]);
+    const layout = layoutMode.value;
+    const cut = cutMarginInches();
+    const [tplUrl, oLogoUrl, oBleedUrl] = await Promise.all([
+        AppRender.templateURL(ls, size, layout, cut),
+        AppRender.overlayURL(ls, size, "logo", currentBleedPx(), layout, cut),
+        AppRender.overlayURL(ls, size, "bleed", currentBleedPx(), layout, cut),
+    ]);
     if (!tplUrl) return;
     if (token !== previewToken) {
         URL.revokeObjectURL(tplUrl);
@@ -892,7 +897,9 @@ outputSize.addEventListener("change", () => {
 });
 
 bleedSelect.addEventListener("change", () => {
-    // Bleed enlarges the placed area, so it changes the print resolution.
+    // Bleed enlarges the placed area, so it changes the print resolution --
+    // and in the packed layout it can reach past the cut margin.
+    syncLayoutControls();
     renderQueue();
     updateDownloadBtn();
     if (logoQueue.length > 0) schedulePreview();
@@ -908,7 +915,7 @@ layoutMode.addEventListener("change", () => {
     else loadTemplate();
 });
 
-gapInput.addEventListener("input", () => {
+cutInput.addEventListener("input", () => {
     // The fit readout updates on every keystroke; the sheet redraw is debounced.
     syncLayoutControls();
     updateSlotCounter();

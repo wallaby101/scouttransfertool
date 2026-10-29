@@ -314,10 +314,45 @@ const SheetRender = (function () {
         const h = Place.pyRound(SHEET_CANVAS.height_22x24 * s);
         const px = emptySheet(w, h);
 
-        const sw = Place.pyRound(tmpl.slot_w * s);
-        const sh = Place.pyRound(tmpl.slot_h * s);
-        const logoW = Place.pyRound(tmpl.logo_w * s);
-        const logoH = Place.pyRound(tmpl.logo_h * s);
+        drawLabelOutlines(px, w, h, slotCentersFor(tmpl, outputSize),
+                          tmpl.logo_w, tmpl.logo_h, tmpl.slot_w, tmpl.slot_h,
+                          layer, bleedPx, s);
+
+        return cropOutput({ px, w, h }, tmpl, outputSize, s);
+    }
+
+    /**
+     * The packed layout's logo and bleed outlines, exactly as the jig layout
+     * draws them, but at the packed label positions and turned with the grid
+     * when the grid is turned. Like the jig's, these are never printed.
+     */
+    function renderPackedSlotOverlay(logoSize, outputSize, layer, bleedPx, cutPx, sf) {
+        const s = (sf === undefined || sf === null) ? 1.0 : sf;
+        const tmpl = SHEET_TEMPLATES[logoSize];
+        const w = Place.pyRound(SHEET_CANVAS.width * s);
+        const h = Place.pyRound(SHEET_CANVAS.height_22x24 * s);
+        const px = emptySheet(w, h);
+
+        const region = packedRegion(tmpl, outputSize);
+        const grid = packedGrid(tmpl, cutPx, region);
+        if (!grid) return null;
+        drawLabelOutlines(px, w, h, packedSlotCenters(region, grid),
+                          grid.logo_w, grid.logo_h, grid.logo_w, grid.logo_h,
+                          layer, bleedPx, s);
+
+        return cropOutput({ px, w, h }, tmpl, outputSize, s);
+    }
+
+    // The green label outline and the red printed-area outline around each
+    // centre, drawn at `s`. Shared by both layouts so they cannot drift apart.
+    // slotW/slotH is only the jig's no-bleed-given fallback, kept so the old
+    // parity fixtures still compare.
+    function drawLabelOutlines(px, w, h, centers, labelW, labelH, slotW, slotH,
+                               layer, bleedPx, s) {
+        const sw = Place.pyRound(slotW * s);
+        const sh = Place.pyRound(slotH * s);
+        const logoW = Place.pyRound(labelW * s);
+        const logoH = Place.pyRound(labelH * s);
         const lw = Math.max(1, Place.pyRound(2 * s));
         const red = [255, 0, 0, 200];
         const green = [0, 200, 0, 200];
@@ -334,7 +369,7 @@ const SheetRender = (function () {
             bleedH = logoH + bp * 2;
         }
 
-        for (const [cx, cy] of slotCentersFor(tmpl, outputSize)) {
+        for (const [cx, cy] of centers) {
             const scx = Place.pyRound(cx * s);
             const scy = Place.pyRound(cy * s);
             if (layer === 'bleed' || layer === 'both') {
@@ -350,8 +385,6 @@ const SheetRender = (function () {
                             x0 + logoW - 1, y0 + logoH - 1, lw, green);
             }
         }
-
-        return cropOutput({ px, w, h }, tmpl, outputSize, s);
     }
 
     // ---- assembly ---------------------------------------------------------
@@ -560,8 +593,18 @@ const SheetRender = (function () {
     /**
      * The grid for one packed region. Tries the logo both ways round and keeps
      * whichever fits more, preferring upright on a tie. Null when none fit.
+     *
+     * `cutPx` is the cut margin: the distance from each label's edge to its
+     * cut line, the same on all four sides. A cell is the label plus that
+     * margin all round, cells tile the region, and neighbours share the cut
+     * line between them -- so every piece that is cut out is the label plus
+     * twice the margin, which is where the sewing buffer lives.
+     *
+     * This replaced a gap between labels on 2026-10-29. The old cut line sat
+     * half a gap from each label, so a gap of 2m is the same sheet as a cut
+     * margin of m. See PLAN_cut_margin.md.
      */
-    function packedGrid(tmpl, gapPx, region) {
+    function packedGrid(tmpl, cutPx, region) {
         const [x0, y0, x1, y1] = region;
         const areaW = x1 - x0;
         const areaH = y1 - y0;
@@ -570,36 +613,34 @@ const SheetRender = (function () {
         for (const turned of [false, true]) {
             const lw = turned ? tmpl.logo_h : tmpl.logo_w;
             const lh = turned ? tmpl.logo_w : tmpl.logo_h;
+            const cellW = lw + 2 * cutPx;
+            const cellH = lh + 2 * cutPx;
 
-            const usableW = areaW - 2 * gapPx;
-            const usableH = areaH - 2 * gapPx;
-            if (usableW < lw || usableH < lh) continue;
-
-            const cols = Math.floor((usableW + gapPx) / (lw + gapPx));
-            const rows = Math.floor((usableH + gapPx) / (lh + gapPx));
+            const cols = Math.floor(areaW / cellW);
+            const rows = Math.floor(areaH / cellH);
             if (cols < 1 || rows < 1) continue;
 
             const perSheet = cols * rows;
             // Strictly greater, so upright wins a tie.
             if (best === null || perSheet > best.per_sheet) {
-                const gridW = cols * lw + (cols - 1) * gapPx;
-                const gridH = rows * lh + (rows - 1) * gapPx;
+                const gridW = cols * cellW;
+                const gridH = rows * cellH;
                 best = {
                     turned, logo_w: lw, logo_h: lh, cols, rows,
                     per_sheet: perSheet,
+                    cut: cutPx, cell_w: cellW, cell_h: cellH,
                     grid_w: gridW, grid_h: gridH,
                     // Centred, so the leftover is split rather than all landing
                     // on the right and bottom edges.
                     pad_x: Math.floor((areaW - gridW) / 2),
                     pad_y: Math.floor((areaH - gridH) / 2),
-                    gap: gapPx,
                 };
             }
         }
         return best;
     }
 
-    /** Every logo position in a packed region, row by row. */
+    /** Every label centre in a packed region, row by row. */
     function packedSlotCenters(region, grid) {
         const ox = region[0] + grid.pad_x;
         const oy = region[1] + grid.pad_y;
@@ -607,8 +648,8 @@ const SheetRender = (function () {
         for (let r = 0; r < grid.rows; r++) {
             for (let c = 0; c < grid.cols; c++) {
                 centers.push([
-                    ox + c * (grid.logo_w + grid.gap) + Math.floor(grid.logo_w / 2),
-                    oy + r * (grid.logo_h + grid.gap) + Math.floor(grid.logo_h / 2),
+                    ox + c * grid.cell_w + grid.cut + Math.floor(grid.logo_w / 2),
+                    oy + r * grid.cell_h + grid.cut + Math.floor(grid.logo_h / 2),
                 ]);
             }
         }
@@ -631,32 +672,29 @@ const SheetRender = (function () {
         rectOutline(px, w, h, s(region[0]), s(region[1]),
                     s(region[2]), s(region[3]), lw, BLUE);
 
-        const halfGap = Math.floor(grid.gap / 2);
+        // Cut lines on every cell boundary: cols + 1 verticals and rows + 1
+        // horizontals, so each label sits the cut margin inside its own box.
         const ox = region[0] + grid.pad_x;
         const oy = region[1] + grid.pad_y;
-        const top = oy - halfGap;
-        const bottom = oy + grid.grid_h + halfGap;
-        const left = ox - halfGap;
-        const right = ox + grid.grid_w + halfGap;
-
-        // cols + 1 verticals and rows + 1 horizontals, so every logo is boxed.
+        const right = ox + grid.grid_w;
+        const bottom = oy + grid.grid_h;
         for (let c = 0; c <= grid.cols; c++) {
-            const x = ox - halfGap + c * (grid.logo_w + grid.gap);
-            dashedLine(px, w, h, s(x), s(top), s(x), s(bottom),
+            const x = ox + c * grid.cell_w;
+            dashedLine(px, w, h, s(x), s(oy), s(x), s(bottom),
                        lw2, CUT_DASH, CUT_GAP, CUT_LINE);
         }
         for (let r = 0; r <= grid.rows; r++) {
-            const y = oy - halfGap + r * (grid.logo_h + grid.gap);
-            dashedLine(px, w, h, s(left), s(y), s(right), s(y),
+            const y = oy + r * grid.cell_h;
+            dashedLine(px, w, h, s(ox), s(y), s(right), s(y),
                        lw2, CUT_DASH, CUT_GAP, CUT_LINE);
         }
     }
 
     /** What a packed full sheet and a packed half sheet each hold. */
-    function packedCapacities(tmpl, gapPx, outputSize) {
+    function packedCapacities(tmpl, cutPx, outputSize) {
         const full = fullSizeOf(outputSize);
-        const gridFull = packedGrid(tmpl, gapPx, packedRegion(tmpl, full));
-        const gridHalf = packedGrid(tmpl, gapPx, packedRegion(tmpl, HALF_OF[full]));
+        const gridFull = packedGrid(tmpl, cutPx, packedRegion(tmpl, full));
+        const gridHalf = packedGrid(tmpl, cutPx, packedRegion(tmpl, HALF_OF[full]));
         return {
             gridFull,
             gridHalf,
@@ -676,7 +714,7 @@ const SheetRender = (function () {
      * printed file and half of them invisible on screen. The preview lays this
      * over the shrunk sheet to put them back. Nothing here reaches print.
      */
-    function renderGuides(logoSize, outputSize, layout, gapPx, sf) {
+    function renderGuides(logoSize, outputSize, layout, cutPx, sf) {
         const s = (sf === undefined || sf === null) ? 1.0 : sf;
         const tmpl = SHEET_TEMPLATES[logoSize];
         const w = pyRound(SHEET_CANVAS.width * s);
@@ -685,7 +723,7 @@ const SheetRender = (function () {
 
         if (layout === 'packed') {
             const region = packedRegion(tmpl, outputSize);
-            const grid = packedGrid(tmpl, gapPx, region);
+            const grid = packedGrid(tmpl, cutPx, region);
             if (!grid) return null;
             drawPackedOverlays(px, w, h, region, grid, s);
         } else {
@@ -695,9 +733,9 @@ const SheetRender = (function () {
         return cropOutput({ px, w, h }, tmpl, outputSize, s);
     }
 
-    function planPackedSlots(logoEntries, logoSize, gapPx, outputSize, fullOnly) {
+    function planPackedSlots(logoEntries, logoSize, cutPx, outputSize, fullOnly) {
         const tmpl = SHEET_TEMPLATES[logoSize];
-        const caps = packedCapacities(tmpl, gapPx, outputSize);
+        const caps = packedCapacities(tmpl, cutPx, outputSize);
         if (!caps.gridFull) return null;
 
         const flatSlots = [];
@@ -728,10 +766,10 @@ const SheetRender = (function () {
     // logo turned the other way from the full sheet, and that costs nothing
     // real: the transfer is cut out before it is pressed, so which way it lay
     // on the film does not reach the bag.
-    function preparePackedEntries(logoEntries, logoSize, turned) {
+    function preparePackedEntries(logoEntries, logoSize, turned, bleedPx) {
         const tmpl = SHEET_TEMPLATES[logoSize];
         return logoEntries.map((entry) => {
-            const prepared = Place.prepareLogo(entry.px, entry.w, entry.h, tmpl, 0, {
+            const prepared = Place.prepareLogo(entry.px, entry.w, entry.h, tmpl, bleedPx, {
                 logoScale: entry.logoScale,
                 offsetX: entry.offsetX,
                 offsetY: entry.offsetY,
@@ -798,15 +836,19 @@ const SheetRender = (function () {
      * Render every packed sheet, handing each to onSheet() and dropping it
      * before the next, exactly as renderSheets() does.
      *
-     * @param {number} opts.gap space between logos, in inches
+     * @param {number} opts.cutMargin distance from each label to its cut line,
+     *     on every side, in inches
+     * @param {string} opts.bleed how far the print reaches past the label, as
+     *     in the jig layout
      */
     async function renderPackedSheets(opts, onSheet) {
-        const gapPx = pyRound(parseFloat(opts.gap) * SHEET_CANVAS.dpi);
-        const plan = planPackedSlots(opts.logoEntries, opts.logoSize, gapPx,
+        const cutPx = pyRound(parseFloat(opts.cutMargin) * SHEET_CANVAS.dpi);
+        const bleedPx = pyRound(parseFloat(opts.bleed || 0) * SHEET_CANVAS.dpi);
+        const plan = planPackedSlots(opts.logoEntries, opts.logoSize, cutPx,
                                      opts.outputSize, opts.fullSheetsOnly);
         if (!plan) {
             throw new Error(
-                `A gap of ${opts.gap}" leaves no room for a logo this size.`);
+                `A cut margin of ${opts.cutMargin}" leaves no room for a logo this size.`);
         }
         // One prepared set per orientation the job actually uses, built on
         // first use: a job of full sheets only ever builds one.
@@ -814,7 +856,7 @@ const SheetRender = (function () {
         const preparedFor = (turned) => {
             if (!preparedBy.has(turned)) {
                 preparedBy.set(turned, preparePackedEntries(
-                    opts.logoEntries, opts.logoSize, turned));
+                    opts.logoEntries, opts.logoSize, turned, bleedPx));
             }
             return preparedBy.get(turned);
         };
@@ -886,6 +928,7 @@ const SheetRender = (function () {
         slotCentersFor,
         renderEmptyTemplate,
         renderSlotOverlay,
+        renderPackedSlotOverlay,
         hexToRgba,
         planSlots,
         prepareEntries,

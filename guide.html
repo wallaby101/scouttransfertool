@@ -466,22 +466,29 @@ li { margin-bottom: .3rem; }
     </div>
 
     <details>
-      <summary>The Gap setting, and what changes in packed mode</summary>
+      <summary>The Cut margin setting, and what changes in packed mode</summary>
       <div class="stack">
         <p><strong>Packed uses the whole sheet.</strong> It keeps half an inch clear
           around the outside &mdash; of the half sheet too, along the cut &mdash; and
           fills everything inside. It ignores the jig entirely, because you are
           cutting these out by hand, so there is no jig to line up with. That is
           where the extra labels in the table come from.</p>
-        <p><strong>Gap</strong> is the space between logos and in from that margin.
-          Type it in inches; 0.25 is a sensible start. Underneath, the tool tells you
-          what that gap buys &mdash; <em>104 per sheet, 13&nbsp;&times;&nbsp;8, turned
-          sideways to fit more</em> &mdash; and updates as you type.</p>
+        <p><strong>Cut margin</strong> is how far each cut line sits from the edge
+          of its label &mdash; the same on all four sides. Every piece you cut out is
+          the label plus that margin all round, which is the room the needle needs:
+          set it to <strong>0.25</strong> for a quarter-inch sewing buffer. The default,
+          0.125, packs exactly as the tool always has.</p>
+        <p>Underneath, the tool tells you what the margin buys and how big each piece
+          will be &mdash; <em>54 per sheet, 9&nbsp;&times;&nbsp;6, turned sideways. Each
+          piece cut out is 2.25&nbsp;&times;&nbsp;3.75&Prime;</em> &mdash; and updates as
+          you type.</p>
         <ul>
-          <li><strong>Bleed disappears.</strong> It exists to fill the jig&rsquo;s slot
-            opening, and there are no openings here.</li>
-          <li><strong>The outline checkboxes disappear.</strong> They mark jig slots;
-            the dotted cut lines already show where everything is.</li>
+          <li><strong>Bleed and the outline checkboxes work as they do for the
+            jig.</strong> The green outline is the label; the dotted red line is
+            where you cut. If a logo does not reach the green line on every side,
+            that is the shape of the logo file, not the spacing.</li>
+          <li><strong>Keep the margin wider than the bleed.</strong> If it is not,
+            the print reaches past the cut line, and the tool says so.</li>
           <li><strong>No blue jig boxes and no cyan line down the middle.</strong>
             One blue outline shows the printed area; the logos run straight across
             where that middle line used to be.</li>
