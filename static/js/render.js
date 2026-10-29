@@ -239,11 +239,16 @@ const SheetRender = (function () {
      *
      * An empty job is one full sheet: nothing has been asked for yet, so the
      * preview shows the sheet that was picked rather than guessing at a half.
+     *
+     * `fullOnly` rounds the remainder up to a whole sheet instead. Some print
+     * services will not take anything but a full sheet, and a job they refuse
+     * costs more than the film a half-empty sheet wastes.
      */
-    function planSheetSizes(outputSize, total, perHalf) {
+    function planSheetSizes(outputSize, total, perHalf, fullOnly) {
         if (!perHalf) return [];
         const full = fullSizeOf(outputSize);
-        const halves = total > 0 ? Math.ceil(total / perHalf) : 2;
+        let halves = total > 0 ? Math.ceil(total / perHalf) : 2;
+        if (fullOnly && halves % 2) halves += 1;
         const sizes = [];
         for (let i = 0; i < Math.floor(halves / 2); i++) sizes.push(full);
         if (halves % 2) sizes.push(HALF_OF[full]);
@@ -354,7 +359,7 @@ const SheetRender = (function () {
      * Flatten the queue into one entry per slot, carrying its variable-data
      * value. Mirrors the flat_slots list in generate_transfer_sheet().
      */
-    function planSlots(logoEntries, logoSize, outputSize) {
+    function planSlots(logoEntries, logoSize, outputSize, fullOnly) {
         const tmpl = SHEET_TEMPLATES[logoSize];
         const perHalf = slotCentersFor(tmpl, HALF_OF[fullSizeOf(outputSize)]).length;
         const flatSlots = [];
@@ -370,7 +375,7 @@ const SheetRender = (function () {
         });
 
         const sheets = sheetsFromSizes(
-            planSheetSizes(outputSize, flatSlots.length, perHalf),
+            planSheetSizes(outputSize, flatSlots.length, perHalf, fullOnly),
             (size) => slotCentersFor(tmpl, size));
 
         return { sheets, flatSlots, perHalf, numSheets: sheets.length };
@@ -477,7 +482,8 @@ const SheetRender = (function () {
      */
     async function renderSheets(opts, onSheet) {
         const bleedPx = pyRound(parseFloat(opts.bleed) * SHEET_CANVAS.dpi);
-        const plan = planSlots(opts.logoEntries, opts.logoSize, opts.outputSize);
+        const plan = planSlots(opts.logoEntries, opts.logoSize, opts.outputSize,
+                               opts.fullSheetsOnly);
         const prepared = prepareEntries(opts.logoEntries, opts.logoSize, bleedPx);
 
         for (let n = 0; n < plan.numSheets; n++) {
@@ -635,7 +641,7 @@ const SheetRender = (function () {
         return cropOutput({ px, w, h }, tmpl, outputSize, s);
     }
 
-    function planPackedSlots(logoEntries, logoSize, gapPx, outputSize) {
+    function planPackedSlots(logoEntries, logoSize, gapPx, outputSize, fullOnly) {
         const tmpl = SHEET_TEMPLATES[logoSize];
         // The grid is per jig half either way; a full sheet is two of it.
         const grid = packedGrid(tmpl, gapPx, 2);
@@ -652,7 +658,7 @@ const SheetRender = (function () {
         });
 
         const sheets = sheetsFromSizes(
-            planSheetSizes(outputSize, flatSlots.length, grid.per_half),
+            planSheetSizes(outputSize, flatSlots.length, grid.per_half, fullOnly),
             (size) => packedSlotCenters(tmpl, grid, sheetHalves(size)));
 
         return { grid, sheets, flatSlots, numSheets: sheets.length };
@@ -729,7 +735,7 @@ const SheetRender = (function () {
     async function renderPackedSheets(opts, onSheet) {
         const gapPx = pyRound(parseFloat(opts.gap) * SHEET_CANVAS.dpi);
         const plan = planPackedSlots(opts.logoEntries, opts.logoSize, gapPx,
-                                     opts.outputSize);
+                                     opts.outputSize, opts.fullSheetsOnly);
         if (!plan) {
             throw new Error(
                 `A gap of ${opts.gap}" leaves no room for a logo this size.`);

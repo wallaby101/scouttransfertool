@@ -12,6 +12,8 @@ const downloadPdfBtn = document.getElementById("download-pdf-btn");
 const projectNameInput = document.getElementById("project_name");
 const status = document.getElementById("status");
 const outputSize = document.getElementById("output_size");
+const fullSheetsOnly = document.getElementById("full_sheets_only");
+const sheetSizeNote = document.getElementById("sheet-size-note");
 const bleedSelect = document.getElementById("bleed");
 const layoutMode = document.getElementById("layout_mode");
 const gapInput = document.getElementById("gap");
@@ -106,7 +108,7 @@ function getMaxSlots() {
 function sheetBreakdown() {
     const total = getTotalQuantity();
     const sizes = SheetRender.planSheetSizes(
-        outputSize.value, total, currentPerHalf());
+        outputSize.value, total, currentPerHalf(), fullSheetsOnly.checked);
     const full = sizes.filter(s => SheetRender.sheetHalves(s) === 2).length;
     return { total, sizes, full, half: sizes.length - full };
 }
@@ -116,6 +118,15 @@ function plural(n, word) {
 }
 
 // Swap the bleed and gap controls, and show how many fit per sheet.
+// The note under Sheet Size states the rule in force, because the two
+// settings produce visibly different jobs from the same logos.
+function syncSheetSizeNote() {
+    sheetSizeNote.textContent = fullSheetsOnly.checked
+        ? "Every sheet is a full sheet, even when the last one is half empty."
+        : "The full sheet. A job that ends on one jig half gets a half sheet"
+          + " for the remainder.";
+}
+
 function syncLayoutControls() {
     const packed = isPacked();
     // Gap takes bleed's place in the row rather than sitting beside it: three
@@ -410,6 +421,19 @@ function getValidationSummary(entry) {
 // maximum, and every 3" label printed at 2.75". Nothing in either tool said so.
 
 const SERVICE_PREF_KEY = "heatpress.printService";
+// Whether the printer takes a half sheet is a property of the shop, not of a
+// job, so it is remembered the way the chosen service is.
+const FULL_SHEETS_PREF_KEY = "heatpress.fullSheetsOnly";
+
+function loadFullSheetsPref() {
+    try { return localStorage.getItem(FULL_SHEETS_PREF_KEY) === "1"; }
+    catch (e) { return false; }
+}
+
+function saveFullSheetsPref(on) {
+    try { localStorage.setItem(FULL_SHEETS_PREF_KEY, on ? "1" : "0"); }
+    catch (e) { /* private mode */ }
+}
 
 function loadServicePref() {
     try { return localStorage.getItem(SERVICE_PREF_KEY); } catch (e) { return null; }
@@ -602,6 +626,7 @@ function currentRenderOptions() {
         projectName: projectNameInput.value,
         layout: layoutMode.value,
         gap: gapInches(),
+        fullSheetsOnly: fullSheetsOnly.checked,
     });
 }
 
@@ -836,6 +861,16 @@ async function loadTemplate() {
 }
 
 // ---- Setting changes trigger auto-preview ----
+fullSheetsOnly.addEventListener("change", () => {
+    saveFullSheetsPref(fullSheetsOnly.checked);
+    syncSheetSizeNote();
+    updateSlotCounter();
+    renderQueue();
+    updateDownloadBtn();
+    if (logoQueue.length > 0) schedulePreview();
+    else loadTemplate();
+});
+
 outputSize.addEventListener("change", () => {
     // A half sheet holds half as many labels, so the counts, the per-sheet
     // labels and the sheet count all move with this control now.
@@ -934,6 +969,8 @@ serviceFindings.addEventListener("click", (e) => {
 });
 
 populateServices();
+fullSheetsOnly.checked = loadFullSheetsPref();
+syncSheetSizeNote();
 syncLayoutControls();
 loadTemplate();
 updateDownloadBtn();

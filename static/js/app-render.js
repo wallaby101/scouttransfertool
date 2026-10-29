@@ -93,6 +93,9 @@ const AppRender = (function () {
             projectName: ui.projectName || '',
             layout: ui.layout || 'jig',
             gap: ui.gap === undefined ? 0.25 : ui.gap,
+            // Some print services take nothing but a full sheet, so the
+            // remainder rounds up instead of being cut to a half.
+            fullSheetsOnly: Boolean(ui.fullSheetsOnly),
         };
     }
 

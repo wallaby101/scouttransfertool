@@ -66,10 +66,11 @@
                             <option value="22x24">22 x 24"</option>
                             <option value="22x22">22 x 22"</option>
                         </select>
-                        <div class="field-note">
-                            The full sheet. A job that ends on one jig half
-                            gets a half sheet for the remainder.
-                        </div>
+                        <label class="toggle-label" id="full-sheets-only-row">
+                            <input type="checkbox" id="full_sheets_only">
+                            <span>Always use full sheets</span>
+                        </label>
+                        <div class="field-note" id="sheet-size-note"></div>
                     </div>
 
                     <div class="form-group">
