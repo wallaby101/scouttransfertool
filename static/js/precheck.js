@@ -14,9 +14,13 @@ const Precheck = (function () {
     const SHEET_INCHES = {
         "22x24": { w: 22, h: 24 },
         "22x22": { w: 22, h: 22 },
+        "22x12": { w: 22, h: 12 },
+        "22x11": { w: 22, h: 11 },
     };
 
-    // Sheet sizes this app offers, smallest first, for suggesting a fix.
+    // Sheet sizes offered as the one-click fix for a sheet the service will not
+    // take, smallest first. Full sheets only, deliberately: a half sheet holds
+    // half the labels, and halving someone's order is not a size fix.
     const SHEET_ORDER = ["22x22", "22x24"];
 
     function fitsIn(sheet, max) {

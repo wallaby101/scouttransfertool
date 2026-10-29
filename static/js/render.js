@@ -154,22 +154,66 @@ const SheetRender = (function () {
 
     // ---- sheet shaping ----------------------------------------------------
 
-    // Port of the 22x22 crop: remove 1" from the top and bottom of the 22x24
-    // layout. A straight row copy, so exact.
-    function cropVertical(px, w, h, cropPx) {
-        const outH = h - 2 * cropPx;
+    // Every sheet is laid out on the one 22x24 canvas and then cut down to the
+    // requested output size. 22x22 loses an inch from the top and the bottom;
+    // the two half sheets stop at the jig separator, keeping the top jig half
+    // only -- one jig's worth of film, for orders below a full sheet.
+    //
+    // Port of crop_box()/_crop_output()/slot_centers_for() in
+    // core/generator.py. See PLAN_half_sheet.md.
+    const HALF_SIZES = ['22x12', '22x11'];
+    const TOP_CROPPED = ['22x22', '22x11'];
+
+    /** How many jig halves an output size carries. */
+    function sheetHalves(outputSize) {
+        return HALF_SIZES.indexOf(outputSize) >= 0 ? 1 : 2;
+    }
+
+    /**
+     * The rows of the 22x24 canvas an output size keeps, scaled by sf:
+     * [top, bottom) with bottom exclusive, or null when the whole canvas is
+     * kept. A half sheet ends at the template's own separator rather than at
+     * a number repeated here.
+     */
+    function cropBox(tmpl, outputSize, sf) {
+        const s = (sf === undefined || sf === null) ? 1.0 : sf;
+        if (outputSize === '22x24') return null;
+        const top = TOP_CROPPED.indexOf(outputSize) >= 0
+            ? pyRound(SHEET_CANVAS.crop_px * s) : 0;
+        const bottom = HALF_SIZES.indexOf(outputSize) >= 0
+            ? pyRound(tmpl.separator_y * s)
+            : pyRound(SHEET_CANVAS.height_22x24 * s)
+                - pyRound(SHEET_CANVAS.crop_px * s);
+        return [top, bottom];
+    }
+
+    // Keep rows [top, bottom) of a full-height canvas. A straight row copy,
+    // so exact.
+    function cropRows(px, w, h, top, bottom) {
         const stride = w * 4;
         return {
-            px: px.slice(cropPx * stride, (cropPx + outH) * stride),
+            px: px.slice(top * stride, bottom * stride),
             w,
-            h: outH,
+            h: bottom - top,
         };
     }
 
-    function sheetHeight(outputSize) {
-        return outputSize === '22x22'
-            ? SHEET_CANVAS.height_22x22
-            : SHEET_CANVAS.height_22x24;
+    /** Cut a full 22x24 sheet down to the requested output size. */
+    function cropOutput(sheet, tmpl, outputSize, sf) {
+        const box = cropBox(tmpl, outputSize, sf);
+        return box
+            ? cropRows(sheet.px, sheet.w, sheet.h, box[0], box[1])
+            : sheet;
+    }
+
+    /**
+     * The slot centres an output size uses. A half sheet is cut at the
+     * separator, so only the top jig half's centres land on it. Every template
+     * splits evenly there, top half first.
+     */
+    function slotCentersFor(tmpl, outputSize) {
+        if (sheetHalves(outputSize) === 2) return tmpl.slot_centers;
+        return tmpl.slot_centers.filter((c) => c[1] < tmpl.separator_y);
     }
 
     // Port of generate_empty_template(): overlays only, no logos.
@@ -180,9 +224,7 @@ const SheetRender = (function () {
         const h = pyRound(SHEET_CANVAS.height_22x24 * s);
         const px = emptySheet(w, h);
         drawOverlays(px, w, h, tmpl, s);
-        return outputSize === '22x22'
-            ? cropVertical(px, w, h, pyRound(SHEET_CANVAS.crop_px * s))
-            : { px, w, h };
+        return cropOutput({ px, w, h }, tmpl, outputSize, s);
     }
 
     // Port of generate_slot_overlay(). These are drawn at alpha 200, which is
@@ -224,7 +266,7 @@ const SheetRender = (function () {
             bleedH = logoH + bp * 2;
         }
 
-        for (const [cx, cy] of tmpl.slot_centers) {
+        for (const [cx, cy] of slotCentersFor(tmpl, outputSize)) {
             const scx = Place.pyRound(cx * s);
             const scy = Place.pyRound(cy * s);
             if (layer === 'bleed' || layer === 'both') {
@@ -241,9 +283,7 @@ const SheetRender = (function () {
             }
         }
 
-        return outputSize === '22x22'
-            ? cropVertical(px, w, h, Place.pyRound(SHEET_CANVAS.crop_px * s))
-            : { px, w, h };
+        return cropOutput({ px, w, h }, tmpl, outputSize, s);
     }
 
     // ---- assembly ---------------------------------------------------------
@@ -264,9 +304,10 @@ const SheetRender = (function () {
      * Flatten the queue into one entry per slot, carrying its variable-data
      * value. Mirrors the flat_slots list in generate_transfer_sheet().
      */
-    function planSlots(logoEntries, logoSize) {
+    function planSlots(logoEntries, logoSize, outputSize) {
         const tmpl = SHEET_TEMPLATES[logoSize];
-        const slotsPerSheet = tmpl.slot_centers.length;
+        const centers = slotCentersFor(tmpl, outputSize);
+        const slotsPerSheet = centers.length;
         const flatSlots = [];
 
         logoEntries.forEach((entry, entryIdx) => {
@@ -280,6 +321,7 @@ const SheetRender = (function () {
         });
 
         return {
+            centers,
             flatSlots,
             slotsPerSheet,
             numSheets: Math.max(1, Math.ceil(flatSlots.length / slotsPerSheet)),
@@ -342,7 +384,7 @@ const SheetRender = (function () {
                                                overlay, vdValue, tmpl);
             }
 
-            const [cx, cy] = tmpl.slot_centers[slotIdx];
+            const [cx, cy] = plan.centers[slotIdx];
             const dx = cx - Math.floor(slot.w / 2);
             const dy = cy - Math.floor(slot.h / 2);
 
@@ -366,9 +408,12 @@ const SheetRender = (function () {
         SheetText.drawProjectName(px, w, h,
             sheetLabel(projectName || '', sheetNum, plan.numSheets));
 
-        return outputSize === '22x22'
-            ? cropVertical(px, w, h, SHEET_CANVAS.crop_px)
-            : { px, w, h };
+        // The overlays above are drawn for the whole 22x24 layout. On a half
+        // sheet the crop is what removes the second jig half's outline, its
+        // registration lines and the separator, so the drawing code stays one
+        // routine with one set of coordinates. The second half's project label
+        // goes the same way.
+        return cropOutput({ px, w, h }, tmpl, outputSize, 1.0);
     }
 
     /**
@@ -383,7 +428,7 @@ const SheetRender = (function () {
      */
     async function renderSheets(opts, onSheet) {
         const bleedPx = pyRound(parseFloat(opts.bleed) * SHEET_CANVAS.dpi);
-        const plan = planSlots(opts.logoEntries, opts.logoSize);
+        const plan = planSlots(opts.logoEntries, opts.logoSize, opts.outputSize);
         const prepared = prepareEntries(opts.logoEntries, opts.logoSize, bleedPx);
 
         for (let n = 0; n < plan.numSheets; n++) {
@@ -413,7 +458,9 @@ const SheetRender = (function () {
      * The grid for one jig half. Tries the logo both ways round and keeps
      * whichever fits more, preferring upright on a tie. Null when none fit.
      */
-    function packedGrid(tmpl, gapPx) {
+    function packedGrid(tmpl, gapPx, halves) {
+        const nHalves = (halves === undefined || halves === null)
+            ? tmpl.jig_outlines.length : halves;
         const [x0, y0, x1, y1] = tmpl.jig_outlines[0];
         const areaW = x1 - x0;
         const areaH = y1 - y0;
@@ -439,7 +486,7 @@ const SheetRender = (function () {
                 best = {
                     turned, logo_w: lw, logo_h: lh, cols, rows,
                     per_half: perHalf,
-                    per_sheet: perHalf * tmpl.jig_outlines.length,
+                    per_sheet: perHalf * nHalves,
                     grid_w: gridW, grid_h: gridH,
                     // Centred, so the leftover is split rather than all landing
                     // on the right and bottom edges.
@@ -452,10 +499,15 @@ const SheetRender = (function () {
         return best;
     }
 
-    /** Every logo position on a sheet, first half then second. */
-    function packedSlotCenters(tmpl, grid) {
+    /**
+     * Every logo position on a sheet, first half then second. A half sheet
+     * carries the top jig half only, so it stops after the first.
+     */
+    function packedSlotCenters(tmpl, grid, halves) {
+        const nHalves = (halves === undefined || halves === null)
+            ? tmpl.jig_outlines.length : halves;
         const centers = [];
-        for (const [x0, y0] of tmpl.jig_outlines) {
+        for (const [x0, y0] of tmpl.jig_outlines.slice(0, nHalves)) {
             const ox = x0 + grid.pad_x;
             const oy = y0 + grid.pad_y;
             for (let r = 0; r < grid.rows; r++) {
@@ -531,17 +583,16 @@ const SheetRender = (function () {
             drawOverlays(px, w, h, tmpl, s);
         }
 
-        return outputSize === '22x22'
-            ? cropVertical(px, w, h, pyRound(SHEET_CANVAS.crop_px * s))
-            : { px, w, h };
+        return cropOutput({ px, w, h }, tmpl, outputSize, s);
     }
 
-    function planPackedSlots(logoEntries, logoSize, gapPx) {
+    function planPackedSlots(logoEntries, logoSize, gapPx, outputSize) {
         const tmpl = SHEET_TEMPLATES[logoSize];
-        const grid = packedGrid(tmpl, gapPx);
+        const halves = sheetHalves(outputSize);
+        const grid = packedGrid(tmpl, gapPx, halves);
         if (!grid) return null;
 
-        const centers = packedSlotCenters(tmpl, grid);
+        const centers = packedSlotCenters(tmpl, grid, halves);
         const flatSlots = [];
         logoEntries.forEach((entry, entryIdx) => {
             const overlay = entry.textOverlay;
@@ -615,9 +666,9 @@ const SheetRender = (function () {
         SheetText.drawProjectName(px, w, h,
             sheetLabel(projectName || '', sheetNum, plan.numSheets));
 
-        return outputSize === '22x22'
-            ? cropVertical(px, w, h, SHEET_CANVAS.crop_px)
-            : { px, w, h };
+        // As in the jig layout: the crop is what takes the second jig half off
+        // a half sheet, line work and all.
+        return cropOutput({ px, w, h }, tmpl, outputSize, 1.0);
     }
 
     /**
@@ -628,7 +679,8 @@ const SheetRender = (function () {
      */
     async function renderPackedSheets(opts, onSheet) {
         const gapPx = pyRound(parseFloat(opts.gap) * SHEET_CANVAS.dpi);
-        const plan = planPackedSlots(opts.logoEntries, opts.logoSize, gapPx);
+        const plan = planPackedSlots(opts.logoEntries, opts.logoSize, gapPx,
+                                     opts.outputSize);
         if (!plan) {
             throw new Error(
                 `A gap of ${opts.gap}" leaves no room for a logo this size.`);
@@ -691,8 +743,11 @@ const SheetRender = (function () {
         rectOutline,
         dashedLine,
         drawOverlays,
-        cropVertical,
-        sheetHeight,
+        sheetHalves,
+        cropBox,
+        cropRows,
+        cropOutput,
+        slotCentersFor,
         renderEmptyTemplate,
         renderSlotOverlay,
         hexToRgba,

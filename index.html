@@ -99,8 +99,14 @@
                         <div class="form-group">
                             <label for="output_size">Sheet Size</label>
                             <select id="output_size" name="output_size">
-                                <option value="22x24">22 x 24"</option>
-                                <option value="22x22">22 x 22"</option>
+                                <optgroup label="Full sheet">
+                                    <option value="22x24">22 x 24"</option>
+                                    <option value="22x22">22 x 22"</option>
+                                </optgroup>
+                                <optgroup label="Half sheet">
+                                    <option value="22x12">22 x 12"</option>
+                                    <option value="22x11">22 x 11"</option>
+                                </optgroup>
                             </select>
                         </div>
                     </div>

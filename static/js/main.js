@@ -68,10 +68,26 @@ function gapInches() {
     return Number.isFinite(v) && v >= 0 ? v : 0;
 }
 
+// A half sheet is cut at the jig separator and carries the top jig half only,
+// so every capacity below is halved with it.
+function currentHalves() {
+    return SheetRender.sheetHalves(outputSize.value);
+}
+
+function isHalfSheet() {
+    return currentHalves() === 1;
+}
+
+// How many jig slots this sheet size offers for a template.
+function jigSlotsPerSheet(tmpl) {
+    return SheetRender.slotCentersFor(tmpl, outputSize.value).length;
+}
+
 // The packed grid for the current settings, or null when nothing fits.
 function currentPackedGrid() {
     const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
-    return SheetRender.packedGrid(SHEET_TEMPLATES[logoSizeSelect.value], gapPx);
+    return SheetRender.packedGrid(SHEET_TEMPLATES[logoSizeSelect.value], gapPx,
+                                  currentHalves());
 }
 
 function getMaxSlots() {
@@ -79,7 +95,7 @@ function getMaxSlots() {
         const grid = currentPackedGrid();
         return grid ? grid.per_sheet : 0;
     }
-    return EDITOR_TEMPLATES[logoSizeSelect.value].max_slots;
+    return jigSlotsPerSheet(EDITOR_TEMPLATES[logoSizeSelect.value]);
 }
 
 // Swap the bleed and gap controls, and show how many fit per sheet.
@@ -97,18 +113,19 @@ function syncLayoutControls() {
 
     // The per-sheet counts baked into the Logo Size labels are the jig's. In
     // packed mode they are wrong, and would contradict the fit readout below.
+    const per = isHalfSheet() ? "per half sheet" : "per sheet";
     for (const opt of logoSizeSelect.options) {
         const tmpl = SHEET_TEMPLATES[opt.value];
         // Strip any trailing "(... per sheet)" so this is safe to re-run.
         const base = opt.textContent.replace(/\s*\([^)]*\)\s*$/, "");
         if (packed) {
             const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
-            const g = SheetRender.packedGrid(tmpl, gapPx);
+            const g = SheetRender.packedGrid(tmpl, gapPx, currentHalves());
             opt.textContent = g
-                ? `${base} (${g.per_sheet} per sheet)`
+                ? `${base} (${g.per_sheet} ${per})`
                 : `${base} (does not fit)`;
         } else {
-            opt.textContent = `${base} (${tmpl.max_slots} per sheet)`;
+            opt.textContent = `${base} (${jigSlotsPerSheet(tmpl)} ${per})`;
         }
     }
 
@@ -122,8 +139,11 @@ function syncLayoutControls() {
         return;
     }
     gapFit.classList.remove("warn");
-    gapFit.textContent =
-        `${grid.per_sheet} per sheet — ${grid.cols} x ${grid.rows} per jig half`
+    // On a half sheet the grid and the sheet are the same thing, so naming the
+    // jig half as well would just say it twice.
+    gapFit.textContent = (isHalfSheet()
+        ? `${grid.per_sheet} per half sheet — ${grid.cols} x ${grid.rows}`
+        : `${grid.per_sheet} per sheet — ${grid.cols} x ${grid.rows} per jig half`)
         + (grid.turned ? ", turned sideways to fit more" : "");
 }
 
@@ -794,6 +814,11 @@ async function loadTemplate() {
 
 // ---- Setting changes trigger auto-preview ----
 outputSize.addEventListener("change", () => {
+    // A half sheet holds half as many labels, so the counts, the per-sheet
+    // labels and the sheet count all move with this control now.
+    syncLayoutControls();
+    updateSlotCounter();
+    renderQueue();
     updateDownloadBtn();
     if (logoQueue.length > 0) {
         schedulePreview();
