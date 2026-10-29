@@ -61,6 +61,18 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="output_size">Sheet Size</label>
+                        <select id="output_size" name="output_size">
+                            <option value="22x24">22 x 24"</option>
+                            <option value="22x22">22 x 22"</option>
+                        </select>
+                        <div class="field-note">
+                            The full sheet. A job that ends on one jig half
+                            gets a half sheet for the remainder.
+                        </div>
+                    </div>
+
+                    <div class="form-group">
                         <label id="logo-label">Logos (3x3" PNG or JPEG)</label>
                         <div class="upload-area" id="upload-area">
                             <input type="file" id="logo" accept=".png,.jpg,.jpeg" multiple>
@@ -95,19 +107,6 @@
                             <label for="gap">Gap (in)</label>
                             <input type="number" id="gap" name="gap"
                                    value="0.25" min="0" max="2" step="0.05">
-                        </div>
-                        <div class="form-group">
-                            <label for="output_size">Sheet Size</label>
-                            <select id="output_size" name="output_size">
-                                <optgroup label="Full sheet">
-                                    <option value="22x24">22 x 24"</option>
-                                    <option value="22x22">22 x 22"</option>
-                                </optgroup>
-                                <optgroup label="Half sheet">
-                                    <option value="22x12">22 x 12"</option>
-                                    <option value="22x11">22 x 11"</option>
-                                </optgroup>
-                            </select>
                         </div>
                     </div>
                     <div id="gap-fit" class="field-note" hidden></div>

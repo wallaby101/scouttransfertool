@@ -216,6 +216,56 @@ const SheetRender = (function () {
         return tmpl.slot_centers.filter((c) => c[1] < tmpl.separator_y);
     }
 
+    // Which half a full sheet is cut to, and which full sheet a half came
+    // from. Sheet Size names the full sheet being bought; the half is what the
+    // app falls back to for a remainder, never something anyone picks.
+    const HALF_OF = { '22x24': '22x12', '22x22': '22x11' };
+    const FULL_OF = { '22x12': '22x24', '22x11': '22x22' };
+
+    /** The full sheet a size belongs to; a full size names itself. */
+    function fullSizeOf(outputSize) {
+        return FULL_OF[outputSize] || outputSize;
+    }
+
+    /**
+     * Which sheets a job needs, in order, as output sizes.
+     *
+     * A job fills in half-jig units. Every two of them is one full sheet, and
+     * a leftover one is a half sheet, always last. Two half sheets are the
+     * same film as one full sheet but twice the pressing, so the full sheet
+     * wins; a lone half saves the film that a mostly empty full sheet wastes.
+     * The result never uses more film than half sheets alone and never makes
+     * more sheets than full sheets alone. See PLAN_sheet_packing.md.
+     *
+     * An empty job is one full sheet: nothing has been asked for yet, so the
+     * preview shows the sheet that was picked rather than guessing at a half.
+     */
+    function planSheetSizes(outputSize, total, perHalf) {
+        if (!perHalf) return [];
+        const full = fullSizeOf(outputSize);
+        const halves = total > 0 ? Math.ceil(total / perHalf) : 2;
+        const sizes = [];
+        for (let i = 0; i < Math.floor(halves / 2); i++) sizes.push(full);
+        if (halves % 2) sizes.push(HALF_OF[full]);
+        return sizes;
+    }
+
+    /**
+     * Turn a list of output sizes into the sheets of a job: each one's size,
+     * its slot centres, and where it starts in the flat slot list. Sheets in a
+     * job are no longer interchangeable, so nothing may assume a single
+     * per-sheet capacity.
+     */
+    function sheetsFromSizes(sizes, centersFor) {
+        let cursor = 0;
+        return sizes.map((size) => {
+            const centers = centersFor(size);
+            const sheet = { outputSize: size, centers, start: cursor };
+            cursor += centers.length;
+            return sheet;
+        });
+    }
+
     // Port of generate_empty_template(): overlays only, no logos.
     function renderEmptyTemplate(logoSize, outputSize, sf) {
         const s = (sf === undefined || sf === null) ? 1.0 : sf;
@@ -306,8 +356,7 @@ const SheetRender = (function () {
      */
     function planSlots(logoEntries, logoSize, outputSize) {
         const tmpl = SHEET_TEMPLATES[logoSize];
-        const centers = slotCentersFor(tmpl, outputSize);
-        const slotsPerSheet = centers.length;
+        const perHalf = slotCentersFor(tmpl, HALF_OF[fullSizeOf(outputSize)]).length;
         const flatSlots = [];
 
         logoEntries.forEach((entry, entryIdx) => {
@@ -320,12 +369,11 @@ const SheetRender = (function () {
             }
         });
 
-        return {
-            centers,
-            flatSlots,
-            slotsPerSheet,
-            numSheets: Math.max(1, Math.ceil(flatSlots.length / slotsPerSheet)),
-        };
+        const sheets = sheetsFromSizes(
+            planSheetSizes(outputSize, flatSlots.length, perHalf),
+            (size) => slotCentersFor(tmpl, size));
+
+        return { sheets, flatSlots, perHalf, numSheets: sheets.length };
     }
 
     /**
@@ -360,7 +408,8 @@ const SheetRender = (function () {
      * then overlays, then the project label, then the 22x22 crop.
      */
     function renderSheet(opts, sheetNum, plan, prepared) {
-        const { logoEntries, logoSize, outputSize, projectName } = opts;
+        const { logoEntries, logoSize, projectName } = opts;
+        const sheet = plan.sheets[sheetNum];
         const tmpl = SHEET_TEMPLATES[logoSize];
         const w = SHEET_CANVAS.width;
         const h = SHEET_CANVAS.height_22x24;
@@ -369,8 +418,8 @@ const SheetRender = (function () {
         const slotW = tmpl.slot_w;
         const slotH = tmpl.slot_h;
 
-        const start = sheetNum * plan.slotsPerSheet;
-        const end = Math.min(start + plan.slotsPerSheet, plan.flatSlots.length);
+        const start = sheet.start;
+        const end = Math.min(start + sheet.centers.length, plan.flatSlots.length);
 
         for (let slotIdx = 0; slotIdx < end - start; slotIdx++) {
             const [entryIdx, vdValue] = plan.flatSlots[start + slotIdx];
@@ -384,7 +433,7 @@ const SheetRender = (function () {
                                                overlay, vdValue, tmpl);
             }
 
-            const [cx, cy] = plan.centers[slotIdx];
+            const [cx, cy] = sheet.centers[slotIdx];
             const dx = cx - Math.floor(slot.w / 2);
             const dy = cy - Math.floor(slot.h / 2);
 
@@ -413,7 +462,7 @@ const SheetRender = (function () {
         // registration lines and the separator, so the drawing code stays one
         // routine with one set of coordinates. The second half's project label
         // goes the same way.
-        return cropOutput({ px, w, h }, tmpl, outputSize, 1.0);
+        return cropOutput({ px, w, h }, tmpl, sheet.outputSize, 1.0);
     }
 
     /**
@@ -588,11 +637,10 @@ const SheetRender = (function () {
 
     function planPackedSlots(logoEntries, logoSize, gapPx, outputSize) {
         const tmpl = SHEET_TEMPLATES[logoSize];
-        const halves = sheetHalves(outputSize);
-        const grid = packedGrid(tmpl, gapPx, halves);
+        // The grid is per jig half either way; a full sheet is two of it.
+        const grid = packedGrid(tmpl, gapPx, 2);
         if (!grid) return null;
 
-        const centers = packedSlotCenters(tmpl, grid, halves);
         const flatSlots = [];
         logoEntries.forEach((entry, entryIdx) => {
             const overlay = entry.textOverlay;
@@ -603,11 +651,11 @@ const SheetRender = (function () {
             }
         });
 
-        return {
-            grid, centers, flatSlots,
-            slotsPerSheet: centers.length,
-            numSheets: Math.max(1, Math.ceil(flatSlots.length / centers.length)),
-        };
+        const sheets = sheetsFromSizes(
+            planSheetSizes(outputSize, flatSlots.length, grid.per_half),
+            (size) => packedSlotCenters(tmpl, grid, sheetHalves(size)));
+
+        return { grid, sheets, flatSlots, numSheets: sheets.length };
     }
 
     // No bleed here: there is no slot opening for it to fill.
@@ -628,14 +676,15 @@ const SheetRender = (function () {
     }
 
     function renderPackedSheet(opts, sheetNum, plan, prepared) {
-        const { logoEntries, logoSize, outputSize, projectName } = opts;
+        const { logoEntries, logoSize, projectName } = opts;
+        const sheet = plan.sheets[sheetNum];
         const tmpl = SHEET_TEMPLATES[logoSize];
         const w = SHEET_CANVAS.width;
         const h = SHEET_CANVAS.height_22x24;
         const px = emptySheet(w, h);
 
-        const start = sheetNum * plan.slotsPerSheet;
-        const end = Math.min(start + plan.slotsPerSheet, plan.flatSlots.length);
+        const start = sheet.start;
+        const end = Math.min(start + sheet.centers.length, plan.flatSlots.length);
 
         for (let slotIdx = 0; slotIdx < end - start; slotIdx++) {
             const [entryIdx, vdValue] = plan.flatSlots[start + slotIdx];
@@ -649,7 +698,7 @@ const SheetRender = (function () {
                                                overlay, vdValue, tmpl);
             }
 
-            const [cx, cy] = plan.centers[slotIdx];
+            const [cx, cy] = sheet.centers[slotIdx];
             const dx = cx - Math.floor(slot.w / 2);
             const dy = cy - Math.floor(slot.h / 2);
 
@@ -668,7 +717,7 @@ const SheetRender = (function () {
 
         // As in the jig layout: the crop is what takes the second jig half off
         // a half sheet, line work and all.
-        return cropOutput({ px, w, h }, tmpl, outputSize, 1.0);
+        return cropOutput({ px, w, h }, tmpl, sheet.outputSize, 1.0);
     }
 
     /**
@@ -744,6 +793,9 @@ const SheetRender = (function () {
         dashedLine,
         drawOverlays,
         sheetHalves,
+        HALF_OF,
+        fullSizeOf,
+        planSheetSizes,
         cropBox,
         cropRows,
         cropOutput,

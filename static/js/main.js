@@ -68,34 +68,51 @@ function gapInches() {
     return Number.isFinite(v) && v >= 0 ? v : 0;
 }
 
-// A half sheet is cut at the jig separator and carries the top jig half only,
-// so every capacity below is halved with it.
-function currentHalves() {
-    return SheetRender.sheetHalves(outputSize.value);
-}
-
-function isHalfSheet() {
-    return currentHalves() === 1;
-}
-
-// How many jig slots this sheet size offers for a template.
-function jigSlotsPerSheet(tmpl) {
-    return SheetRender.slotCentersFor(tmpl, outputSize.value).length;
-}
+// Everything fills in jig halves: two of them are a full sheet, one left over
+// is a half sheet. Sheet Size names the full sheet, so the per-sheet figures
+// below are for that, and the breakdown says what the job actually becomes.
 
 // The packed grid for the current settings, or null when nothing fits.
 function currentPackedGrid() {
     const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
-    return SheetRender.packedGrid(SHEET_TEMPLATES[logoSizeSelect.value], gapPx,
-                                  currentHalves());
+    return SheetRender.packedGrid(SHEET_TEMPLATES[logoSizeSelect.value], gapPx, 2);
 }
 
-function getMaxSlots() {
+// Labels per jig half for a template under the current layout.
+function perHalfFor(tmpl) {
     if (isPacked()) {
-        const grid = currentPackedGrid();
-        return grid ? grid.per_sheet : 0;
+        const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
+        const g = SheetRender.packedGrid(tmpl, gapPx, 2);
+        return g ? g.per_half : 0;
     }
-    return jigSlotsPerSheet(EDITOR_TEMPLATES[logoSizeSelect.value]);
+    const half = SheetRender.HALF_OF[SheetRender.fullSizeOf(outputSize.value)];
+    return SheetRender.slotCentersFor(tmpl, half).length;
+}
+
+function currentPerHalf() {
+    return perHalfFor(SHEET_TEMPLATES[logoSizeSelect.value]);
+}
+
+// Labels per full sheet -- two halves.
+function getMaxSlots() {
+    return currentPerHalf() * 2;
+}
+
+/**
+ * The sheets this job becomes: their sizes in order, and how many of each.
+ * The renderer plans from the same function, so the counter cannot claim
+ * something different from what downloads.
+ */
+function sheetBreakdown() {
+    const total = getTotalQuantity();
+    const sizes = SheetRender.planSheetSizes(
+        outputSize.value, total, currentPerHalf());
+    const full = sizes.filter(s => SheetRender.sheetHalves(s) === 2).length;
+    return { total, sizes, full, half: sizes.length - full };
+}
+
+function plural(n, word) {
+    return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
 // Swap the bleed and gap controls, and show how many fit per sheet.
@@ -113,20 +130,14 @@ function syncLayoutControls() {
 
     // The per-sheet counts baked into the Logo Size labels are the jig's. In
     // packed mode they are wrong, and would contradict the fit readout below.
-    const per = isHalfSheet() ? "per half sheet" : "per sheet";
     for (const opt of logoSizeSelect.options) {
         const tmpl = SHEET_TEMPLATES[opt.value];
         // Strip any trailing "(... per sheet)" so this is safe to re-run.
         const base = opt.textContent.replace(/\s*\([^)]*\)\s*$/, "");
-        if (packed) {
-            const gapPx = Place.pyRound(gapInches() * SHEET_CANVAS.dpi);
-            const g = SheetRender.packedGrid(tmpl, gapPx, currentHalves());
-            opt.textContent = g
-                ? `${base} (${g.per_sheet} ${per})`
-                : `${base} (does not fit)`;
-        } else {
-            opt.textContent = `${base} (${jigSlotsPerSheet(tmpl)} ${per})`;
-        }
+        const ph = perHalfFor(tmpl);
+        opt.textContent = ph
+            ? `${base} (${ph * 2} per sheet)`
+            : `${base} (does not fit)`;
     }
 
     if (!packed) return;
@@ -139,26 +150,13 @@ function syncLayoutControls() {
         return;
     }
     gapFit.classList.remove("warn");
-    // On a half sheet the grid and the sheet are the same thing, so naming the
-    // jig half as well would just say it twice.
-    gapFit.textContent = (isHalfSheet()
-        ? `${grid.per_sheet} per half sheet — ${grid.cols} x ${grid.rows}`
-        : `${grid.per_sheet} per sheet — ${grid.cols} x ${grid.rows} per jig half`)
+    gapFit.textContent =
+        `${grid.per_sheet} per sheet — ${grid.cols} x ${grid.rows} per jig half`
         + (grid.turned ? ", turned sideways to fit more" : "");
 }
 
 function getTotalQuantity() {
     return logoQueue.reduce((sum, e) => sum + e.quantity, 0);
-}
-
-function getRemainingSlots() {
-    return getMaxSlots() - getTotalQuantity();
-}
-
-function getSheetCount() {
-    const total = getTotalQuantity();
-    const perSheet = getMaxSlots();
-    return Math.max(1, Math.ceil(total / perSheet));
 }
 
 function canGenerate() {
@@ -437,8 +435,11 @@ function currentProfile() {
 // and the real print resolution of every logo in the queue.
 function precheckJob() {
     const tmpl = SHEET_TEMPLATES[logoSizeSelect.value];
+    // A job can hold two sheet sizes now. The one that has to clear the
+    // service's cap is the largest, which is the first: halves go last.
+    const sizes = sheetBreakdown().sizes;
     return {
-        outputSize: outputSize.value,
+        outputSize: sizes.length ? sizes[0] : outputSize.value,
         logoInches: tmpl
             ? { w: tmpl.logo_w / SHEET_CANVAS.dpi, h: tmpl.logo_h / SHEET_CANVAS.dpi }
             : null,
@@ -495,20 +496,25 @@ function renderServicePanel() {
     return result;
 }
 
+// There is no cap to count against any more -- a job gets as many sheets as it
+// needs -- so this says what the job becomes. "N / M slots used" read like a
+// limit, and its denominator moved as sheets were added.
 function updateSlotCounter() {
-    const total = getTotalQuantity();
-    const perSheet = getMaxSlots();
-    if (!perSheet) {
+    const { total, full, half } = sheetBreakdown();
+    const perHalf = currentPerHalf();
+    if (!perHalf) {
         slotCounterEl.textContent = "No logos fit at this gap";
         slotCounterEl.classList.remove("at-capacity");
         return;
     }
-    const sheets = Math.ceil(total / perSheet) || 0;
-    if (sheets <= 1) {
-        slotCounterEl.textContent = `${total} / ${perSheet} slots used`;
+    if (total === 0) {
+        slotCounterEl.textContent = `0 labels — ${perHalf * 2} per full sheet`;
     } else {
-        const totalSlots = sheets * perSheet;
-        slotCounterEl.textContent = `${total} / ${totalSlots} slots (${sheets} sheets)`;
+        const parts = [];
+        if (full) parts.push(plural(full, "full sheet"));
+        if (half) parts.push(plural(half, "half sheet"));
+        slotCounterEl.textContent =
+            `${plural(total, "label")} — ${parts.join(" + ")}`;
     }
     slotCounterEl.classList.remove("over-capacity");
     slotCounterEl.classList.toggle("at-capacity", total > 0);
@@ -520,9 +526,7 @@ function canSaveToFolder() {
 }
 
 function sheetCount() {
-    const perSheet = getMaxSlots();
-    if (!perSheet) return 0;
-    return Math.ceil(getTotalQuantity() / perSheet);
+    return sheetBreakdown().sizes.length;
 }
 
 function updateDownloadBtn() {
@@ -609,16 +613,24 @@ function releaseSheetUrls() {
     currentSheetUrls = [];
 }
 
-function renderPreviewSheets(sheetUrls, overlaySrcLogo, overlaySrcBleed,
-                             guidesSrc) {
-    const sheetCount = sheetUrls.length;
+// `sheets` is one entry per sheet: { url, oLogo, oBleed, guides }. The
+// overlays are per sheet because a job can mix a full sheet with a half one,
+// and a full sheet's overlay is the wrong height for a half.
+function renderPreviewSheets(sheets) {
+    const sheetCount = sheets.length;
     currentSheetCount = sheetCount;
 
     releaseSheetUrls();
-    currentSheetUrls = sheetUrls.slice();
+    currentSheetUrls = sheets.map(s => s.url);
     previewTransform.innerHTML = "";
 
+    // Sheets can differ in height, so the view has to fit the tallest.
+    let loaded = 0;
+    let tallest = 0;
+
     for (let i = 0; i < sheetCount; i++) {
+        const { url: sheetUrl, oLogo: overlaySrcLogo,
+                oBleed: overlaySrcBleed, guides: guidesSrc } = sheets[i];
         const wrapper = document.createElement("div");
         wrapper.className = "sheet-wrapper";
 
@@ -634,16 +646,17 @@ function renderPreviewSheets(sheetUrls, overlaySrcLogo, overlaySrcBleed,
 
         const img = document.createElement("img");
         img.className = "preview-img";
-        img.src = sheetUrls[i];
+        img.src = sheetUrl;
         img.draggable = false;
-        if (i === 0) {
-            img.addEventListener("load", () => {
-                singleSheetW = img.naturalWidth;
+        img.addEventListener("load", () => {
+            singleSheetW = img.naturalWidth;
+            tallest = Math.max(tallest, img.naturalHeight);
+            if (++loaded === sheetCount) {
                 imgW = singleSheetW * sheetCount + SHEET_GAP * (sheetCount - 1);
-                imgH = img.naturalHeight;
+                imgH = tallest;
                 fitToView();
-            });
-        }
+            }
+        });
         imagesDiv.appendChild(img);
 
         if (overlaySrcLogo) {
@@ -700,25 +713,35 @@ async function generatePreview() {
         }
 
         const ls = logoSizeSelect.value;
-        const size = outputSize.value;
-        // Those outlines mark jig slots; the packed layout has none, and its
-        // cut lines already show where every logo sits.
-        const [oLogo, oBleed] = isPacked()
-            ? [null, null]
-            : await Promise.all([
-                AppRender.overlayURL(ls, size, "logo", currentBleedPx()),
-                AppRender.overlayURL(ls, size, "bleed", currentBleedPx()),
-            ]);
-        // Both layouts: the sheet's own printed line work, redrawn at preview
-        // scale because shrinking the sheet loses about half of it.
-        const guides = await AppRender.guidesURL(
-            ls, size, layoutMode.value, gapInches());
+        // A job can mix a full sheet with a half one, so every overlay is
+        // built for the size of the sheet it lands on. AppRender caches them
+        // by size, so the repeats across sheets are free.
+        const sizes = sheetBreakdown().sizes;
+        const sheets = [];
+        for (let i = 0; i < urls.length; i++) {
+            const size = sizes[i] || sizes[sizes.length - 1];
+            // Those outlines mark jig slots; the packed layout has none, and
+            // its cut lines already show where every logo sits.
+            const [oLogo, oBleed] = isPacked()
+                ? [null, null]
+                // eslint-disable-next-line no-await-in-loop
+                : await Promise.all([
+                    AppRender.overlayURL(ls, size, "logo", currentBleedPx()),
+                    AppRender.overlayURL(ls, size, "bleed", currentBleedPx()),
+                ]);
+            // Both layouts: the sheet's own printed line work, redrawn at
+            // preview scale because shrinking the sheet loses about half of it.
+            // eslint-disable-next-line no-await-in-loop
+            const guides = await AppRender.guidesURL(
+                ls, size, layoutMode.value, gapInches());
+            sheets.push({ url: urls[i], oLogo, oBleed, guides });
+        }
         if (token !== previewToken) {
             for (const u of urls) URL.revokeObjectURL(u);
             return;
         }
 
-        renderPreviewSheets(urls, oLogo, oBleed, guides);
+        renderPreviewSheets(sheets);
         updateDownloadBtn();
     } catch (err) {
         showStatus(err.message || "Preview failed", "error");
