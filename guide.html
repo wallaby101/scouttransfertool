@@ -214,7 +214,8 @@ li { margin-bottom: .3rem; }
       <div class="step"><span class="num">4</span><div>
         <strong>Set how many you need</strong>
         <p>Use &minus; and &plus;, or click the number and type it. The counter below
-          shows how much of the sheet you have filled.</p></div></div>
+          says what the job becomes &mdash; <em>45 labels &mdash; 1 full sheet + 1 half
+          sheet</em>.</p></div></div>
       <div class="step"><span class="num">5</span><div>
         <strong>Download</strong>
         <p>Check the printer panel is green, then click
@@ -230,11 +231,11 @@ li { margin-bottom: .3rem; }
     <figure>
       <div class="shot">
         <img src="guide-img/app-overview.jpg" alt="The tool with a job loaded: controls down the left, the sheet preview on the right">
-        <span class="pin" style="left:10%;  top:13%">1</span>
-        <span class="pin" style="left:10%;  top:26.5%">2</span>
-        <span class="pin" style="left:10%;  top:36%">3</span>
-        <span class="pin" style="left:11.5%;top:41.5%">4</span>
-        <span class="pin" style="left:8%;   top:95%">5</span>
+        <span class="pin" style="left:11%;  top:11.8%">1</span>
+        <span class="pin" style="left:11%;  top:24.2%">2</span>
+        <span class="pin" style="left:11%;  top:45%">3</span>
+        <span class="pin" style="left:12.3%;top:51%">4</span>
+        <span class="pin" style="left:6%;   top:95.5%">5</span>
       </div>
       <figcaption>Controls down the left, the sheet as it will print on the right.
         The preview updates by itself every time you change something.</figcaption>
@@ -422,9 +423,10 @@ li { margin-bottom: .3rem; }
           app actually makes depends on how many labels you asked for:</p>
         <p class="lede" style="font-size:.95rem">A job fills in jig halves. Every
           two of them is one full sheet, and a leftover one is a <strong>half
-          sheet</strong> &mdash; the sheet cut along the cyan line in the middle,
-          carrying one jig half. It is always the last sheet, and you press it in
-          the jig exactly as you would a full one.</p>
+          sheet</strong> &mdash; the top half of the film, 12&Prime; tall instead of 24.
+          In the jig layout it is one jig half, pressed in the jig exactly as a full
+          sheet is; in the packed layout it is packed on its own. It is always the
+          last sheet.</p>
         <div class="tablewrap"><table>
           <thead><tr><th>Labels at 3 &times; 3&Prime;</th><th>What you get</th><th>Film</th></tr></thead>
           <tbody>
@@ -565,8 +567,18 @@ li { margin-bottom: .3rem; }
             <td>The text colour matches what is behind it. Pick a darker colour.</td></tr>
         <tr><td>Logo cut off at the edges</td>
             <td>Scale is above 100%. Open the editor and click <strong>Reset</strong>.</td></tr>
+        <tr><td>Logo does not reach the green outline on every side</td>
+            <td>The logo file is a different shape from the label, and the tool will
+              not stretch it. Ask for it at the label&rsquo;s shape &mdash; see the sizes
+              below.</td></tr>
+        <tr><td>Red note: <em>the bleed reaches past a cut margin</em></td>
+            <td>The print would run into the next label. Raise <strong>Cut margin</strong>
+              above the bleed, or lower the bleed.</td></tr>
+        <tr><td>Your printer will not take a half sheet</td>
+            <td>Tick <strong>Always use full sheets</strong> under Sheet Size.</td></tr>
         <tr><td>Anything else odd</td>
-            <td>Close the window and open it again. Nothing is kept between sessions.</td></tr>
+            <td>Close the window and open it again. Nothing about the job is kept
+              between sessions &mdash; only your printer and full-sheet settings.</td></tr>
       </tbody>
     </table></div>
 
@@ -619,8 +631,9 @@ li { margin-bottom: .3rem; }
         are using carries on working exactly as it was. Your logos and settings are not
         kept across a reload.</p>
     </div>
-    <p class="lede" style="font-size:.93rem">Two limits worth knowing: 500 labels per
-      job, and a project name is required before anything will download.</p>
+    <p class="lede" style="font-size:.93rem">There is no limit on how many labels a
+      job can have &mdash; it adds sheets as it needs them. The one thing it insists on
+      is a project name before anything will download.</p>
   </div>
 </section>
 </body>

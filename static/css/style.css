@@ -96,7 +96,8 @@ label {
 }
 
 select,
-input[type="text"] {
+input[type="text"],
+.form-group input[type="number"] {
     width: 100%;
     padding: 0.4rem 0.5rem;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -111,7 +112,8 @@ input[type="text"]::placeholder {
     color: rgba(255, 255, 255, 0.25);
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus,
+.form-group input[type="number"]:focus {
     outline: none;
     border-color: #E8508B;
 }
@@ -658,6 +660,20 @@ input[type="text"]:focus {
     font-weight: 500;
 }
 
+/* Six position buttons are wider than the editor's control column, and the
+   last one fell off its edge. The vertical three go on a second line, under
+   the horizontal three. */
+.text-pos-row {
+    flex-wrap: wrap;
+    row-gap: 0.3rem;
+}
+
+.text-pos-row > .align-group + .align-group {
+    flex-basis: 100%;
+    box-sizing: border-box;
+    padding-left: calc(2.4rem + 0.3rem);
+}
+
 .text-align-btn.active {
     background: rgba(232, 80, 139, 0.3);
     border-color: #E8508B;
@@ -957,12 +973,14 @@ input[type="text"]:focus {
 
 /* ---- Packed layout controls ---- */
 
-/* .form-group sets an explicit display, which beats the UA rule for [hidden],
-   so hiding one needs saying outright. */
-.form-group[hidden],
-.field-note[hidden],
-.panel-section[hidden] {
-    display: none;
+/* Any rule that sets `display` beats the browser's own rule for [hidden], so an
+   element the script hides stays on screen. That was patched one selector at a
+   time -- .form-group, .field-note, .panel-section, four print-service panels --
+   and the one it missed was the editor's text controls, which showed beside
+   "+ Add Text" on a logo with no text. Saying it once, for everything, ends the
+   class of bug rather than patching an eighth case. */
+[hidden] {
+    display: none !important;
 }
 
 .field-note {
@@ -987,11 +1005,6 @@ input[type="text"]:focus {
 }
 
 /* ---- Print-service check ---- */
-
-#service-findings[hidden],
-#service-notes[hidden] {
-    display: none;
-}
 
 .finding {
     margin-top: 8px;
@@ -1068,10 +1081,6 @@ input[type="text"]:focus {
 
 /* Measured values, shown pass or fail: a silent check is indistinguishable
    from a broken one. */
-#service-summary[hidden] {
-    display: none;
-}
-
 #service-summary {
     display: flex;
     flex-wrap: wrap;
@@ -1114,10 +1123,6 @@ input[type="text"]:focus {
 }
 
 .chk.bad::before { content: "\00d7"; }
-
-#service-format[hidden] {
-    display: none;
-}
 
 #service-format {
     opacity: 0.85;

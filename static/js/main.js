@@ -69,7 +69,9 @@ function isPacked() {
 // sewing buffer lives. See PLAN_cut_margin.md.
 function cutMarginInches() {
     const v = parseFloat(cutInput.value);
-    return Number.isFinite(v) && v >= 0 ? v : 0;
+    if (!Number.isFinite(v)) return 0;
+    // The field's own min and max, which a typed value is not held to.
+    return Math.min(Math.max(v, Number(cutInput.min) || 0), Number(cutInput.max) || 1);
 }
 
 // Sheet Size names the full sheet, so the per-sheet figures below are for
@@ -915,6 +917,14 @@ layoutMode.addEventListener("change", () => {
     else loadTemplate();
 });
 
+cutInput.addEventListener("change", () => {
+    const used = cutMarginInches();
+    if (parseFloat(cutInput.value) !== used) {
+        cutInput.value = String(used);
+        cutInput.dispatchEvent(new Event("input"));
+    }
+});
+
 cutInput.addEventListener("input", () => {
     // The fit readout updates on every keystroke; the sheet redraw is debounced.
     syncLayoutControls();
@@ -985,6 +995,7 @@ populateServices();
 fullSheetsOnly.checked = loadFullSheetsPref();
 syncSheetSizeNote();
 syncLayoutControls();
+updateSlotCounter();
 loadTemplate();
 updateDownloadBtn();
 

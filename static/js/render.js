@@ -524,9 +524,9 @@ const SheetRender = (function () {
      * Render every sheet, handing each to onSheet() and dropping it before
      * starting the next.
      *
-     * A 22x24 sheet is 6600 x 7200 RGBA, about 190 MB. At the 500-slot cap that
-     * is 17 sheets, so holding them all would need over 3 GB. onSheet() should
-     * export or encode and not retain the buffer.
+     * A 22x24 sheet is 6600 x 7200 RGBA, about 190 MB. There is no label cap in
+     * the browser app -- 500 labels of 3x3 is 17 sheets, over 3 GB if held at
+     * once -- so onSheet() should export or encode and not retain the buffer.
      *
      * @param {Function} onSheet async (sheet, index, total) => void
      */

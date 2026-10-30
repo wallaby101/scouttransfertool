@@ -39,8 +39,17 @@
         });
     }
 
+    // Only a page that was already running under a worker gets reloaded when
+    // a new one takes over -- that is an update, and the new code has to load.
+    // On someone's very first visit there is no worker yet; the first one
+    // claims the page as soon as it has precached the app, and reloading then
+    // threw away whatever they had already typed or dropped in, a few seconds
+    // in. That page is already running this build, so there is nothing to
+    // reload for.
+    const updating = !!navigator.serviceWorker.controller;
+
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
+        if (refreshing || !updating) return;
         refreshing = true;
         window.location.reload();
     });
