@@ -380,6 +380,7 @@ input[type="text"]:focus,
 .sheet-images .preview-img,
 .sheet-images .overlay-logo,
 .sheet-images .overlay-bleed,
+.sheet-images .overlay-sewing,
 .sheet-images .overlay-guides {
     display: block;
     image-rendering: auto;
@@ -391,6 +392,7 @@ input[type="text"]:focus,
    toggle: those lines are printed either way, this only keeps them legible. */
 .sheet-images .overlay-logo,
 .sheet-images .overlay-bleed,
+.sheet-images .overlay-sewing,
 .sheet-images .overlay-guides {
     position: absolute;
     top: 0;
@@ -549,7 +551,8 @@ input[type="text"]:focus,
     min-width: 2.4rem;
 }
 
-.bg-btn {
+.bg-btn,
+.sew-btn {
     width: auto;
     height: 26px;
     padding: 0.25rem 0.5rem;
@@ -557,10 +560,48 @@ input[type="text"]:focus,
     font-weight: 500;
 }
 
-.bg-btn.active {
+.bg-btn.active,
+.sew-btn.active {
     background: rgba(232, 80, 139, 0.3);
     border-color: #E8508B;
     color: #E8508B;
+}
+
+/* The sewing buffer row is a Background row: same rule, label and buttons.
+   Its readout sits under the buttons, a full line of its own. */
+.editor-sew-note {
+    flex-basis: 100%;
+    font-size: 0.68rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.editor-sew-note:empty {
+    display: none;
+}
+
+.editor-sew-note .warn {
+    color: #facc15;
+}
+
+.editor-sew-row .toggle-label {
+    flex-basis: 100%;
+    font-size: 0.72rem;
+}
+
+/* The one new colour: the sewing line, here as on the canvas and the sheet. */
+.sew-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 0;
+    border-top: 2px solid #ff00ff;
+    vertical-align: middle;
+    margin-right: 0.3rem;
+}
+
+.val-badge.sew {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.65);
 }
 
 .editor-bg-row input[type="color"] {

@@ -26,6 +26,27 @@ const AppRender = (function () {
         return fontsReady;
     }
 
+    // ---- sewing buffer ------------------------------------------------------
+
+    // The band inside a label's edge that the stitching takes, chosen per logo
+    // in the editor. Tabitha's three values and no free-form field: it is a
+    // safety floor, not a style setting. See PLAN_sewing_buffer.md.
+    const SEWING_BUFFERS = [
+        { id: 'none',   label: 'None', inches: 0 },
+        { id: '3mm',    label: '3 mm', inches: 3 / 25.4 },
+        { id: '4mm',    label: '4 mm', inches: 4 / 25.4 },
+        { id: '0.25in', label: '\u00BC"', inches: 0.25 },
+    ];
+
+    function sewingBuffer(id) {
+        return SEWING_BUFFERS.find((b) => b.id === id) || SEWING_BUFFERS[0];
+    }
+
+    /** A logo's sewing buffer in whole sheet pixels: 35, 47 or 75, or 0. */
+    function sewingBufferPx(id) {
+        return Place.pyRound(sewingBuffer(id).inches * SHEET_CANVAS.dpi);
+    }
+
     // ---- UI state -> renderer options -------------------------------------
 
     /**
@@ -78,6 +99,7 @@ const AppRender = (function () {
                 offsetY: Math.round(st.offsetY),
                 rotation: st.rotation || 0,
                 background: st.background || null,
+                sewingBufferPx: sewingBufferPx(st.sewingBuffer),
                 textOverlay: overlay,
                 variableData: overlay ? entry.variableData : null,
             };
@@ -204,6 +226,30 @@ const AppRender = (function () {
     }
 
     /**
+     * Each sheet's sewing outlines at preview scale, or null for a sheet with
+     * no buffered logo on it. Not cached: it follows the queue, not just the
+     * template. Drawn at scale, never shrunk.
+     */
+    async function sewingOverlayURLs(options) {
+        const bySheet = SheetRender.sewingBuffersBySheet(options);
+        if (!bySheet) return [];
+        const cutPx = Place.pyRound(parseFloat(options.cutMargin || 0) * SHEET_CANVAS.dpi);
+        const urls = [];
+        for (const { outputSize, buffers } of bySheet) {
+            if (!buffers.some((b) => b > 0)) {
+                urls.push(null);
+                continue;
+            }
+            const o = SheetRender.renderSewingOverlay(
+                options.logoSize, outputSize, options.layout, cutPx, buffers,
+                PREVIEW_SCALE);
+            // eslint-disable-next-line no-await-in-loop
+            urls.push(o ? await rawToURL(o.px, o.w, o.h) : null);
+        }
+        return urls;
+    }
+
+    /**
      * Empty template (guides only), for the initial view.
      *
      * The packed layout has no fixed slots, so its empty sheet is simply a
@@ -299,6 +345,10 @@ const AppRender = (function () {
 
     return {
         PREVIEW_SCALE,
+        SEWING_BUFFERS,
+        sewingBuffer,
+        sewingBufferPx,
+        sewingOverlayURLs,
         ensureFonts,
         entryPixels,
         invalidatePixels,

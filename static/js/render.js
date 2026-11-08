@@ -387,6 +387,89 @@ const SheetRender = (function () {
         }
     }
 
+    // ---- sewing outlines -------------------------------------------------
+
+    const SEWING = [255, 0, 255, 200];
+
+    /**
+     * The magenta sewing line inside each label that has a buffer, drawn at
+     * `s` like the green and red outlines and never printed. `buffers` lines
+     * up with `centers`, one buffer in px per slot; a slot whose logo has none
+     * gets no line. Mirrors _draw_sewing_outlines() in core/generator.py.
+     */
+    function drawSewingOutlines(px, w, h, centers, buffers, labelW, labelH, s) {
+        const lw = Math.max(1, Place.pyRound(2 * s));
+        const n = Math.min(centers.length, buffers.length);
+        for (let i = 0; i < n; i++) {
+            const buf = buffers[i];
+            if (!buf) continue;
+            const sw = Place.pyRound((labelW - 2 * buf) * s);
+            const sh = Place.pyRound((labelH - 2 * buf) * s);
+            const [cx, cy] = centers[i];
+            const x0 = Place.pyRound(cx * s) - Math.floor(sw / 2);
+            const y0 = Place.pyRound(cy * s) - Math.floor(sh / 2);
+            rectOutline(px, w, h, x0, y0, x0 + sw - 1, y0 + sh - 1, lw, SEWING);
+        }
+    }
+
+    /**
+     * One sheet's sewing outlines as an overlay. Unlike the logo and bleed
+     * outlines, which are the same in every slot, this follows the logo in
+     * each slot, so the caller passes that sheet's per-slot buffers.
+     * Mirrors sewing_slot_overlay(). Null when nothing fits (packed only).
+     */
+    function renderSewingOverlay(logoSize, outputSize, layout, cutPx, buffers, sf) {
+        const s = (sf === undefined || sf === null) ? 1.0 : sf;
+        const tmpl = SHEET_TEMPLATES[logoSize];
+        let centers;
+        let labelW;
+        let labelH;
+        if (layout === 'packed') {
+            const region = packedRegion(tmpl, outputSize);
+            const grid = packedGrid(tmpl, cutPx, region);
+            if (!grid) return null;
+            centers = packedSlotCenters(region, grid);
+            labelW = grid.logo_w;
+            labelH = grid.logo_h;
+        } else {
+            centers = slotCentersFor(tmpl, outputSize);
+            labelW = tmpl.logo_w;
+            labelH = tmpl.logo_h;
+        }
+        const w = Place.pyRound(SHEET_CANVAS.width * s);
+        const h = Place.pyRound(SHEET_CANVAS.height_22x24 * s);
+        const px = emptySheet(w, h);
+        drawSewingOutlines(px, w, h, centers, buffers, labelW, labelH, s);
+        return cropOutput({ px, w, h }, tmpl, outputSize, s);
+    }
+
+    /**
+     * Which sewing buffer each slot of each sheet carries, from the same plan
+     * the sheets are rendered from, so the outline lands on the logo that is
+     * actually there. Null when no logo has a buffer.
+     *
+     * @returns {Array<{outputSize: string, buffers: number[]}>|null}
+     */
+    function sewingBuffersBySheet(opts) {
+        if (!opts.logoEntries.some((e) => e.sewingBufferPx > 0)) return null;
+        const plan = opts.layout === 'packed'
+            ? planPackedSlots(opts.logoEntries, opts.logoSize,
+                              pyRound(parseFloat(opts.cutMargin) * SHEET_CANVAS.dpi),
+                              opts.outputSize, opts.fullSheetsOnly)
+            : planSlots(opts.logoEntries, opts.logoSize, opts.outputSize,
+                        opts.fullSheetsOnly);
+        if (!plan) return null;
+        return plan.sheets.map((sheet) => {
+            const end = Math.min(sheet.start + sheet.centers.length,
+                                 plan.flatSlots.length);
+            const buffers = [];
+            for (let i = sheet.start; i < end; i++) {
+                buffers.push(opts.logoEntries[plan.flatSlots[i][0]].sewingBufferPx || 0);
+            }
+            return { outputSize: sheet.outputSize, buffers };
+        });
+    }
+
     // ---- assembly ---------------------------------------------------------
 
     // Pillow's _hex_to_rgba: null when there is no background, opaque white on
@@ -444,6 +527,7 @@ const SheetRender = (function () {
                 offsetX: entry.offsetX,
                 offsetY: entry.offsetY,
                 rotation: entry.rotation,
+                bufferPx: entry.sewingBufferPx || 0,
             }));
     }
 
@@ -464,6 +548,7 @@ const SheetRender = (function () {
      */
     function renderSheet(opts, sheetNum, plan, prepared) {
         const { logoEntries, logoSize, projectName } = opts;
+        const bleedPx = pyRound(parseFloat(opts.bleed || 0) * SHEET_CANVAS.dpi);
         const sheet = plan.sheets[sheetNum];
         const tmpl = SHEET_TEMPLATES[logoSize];
         const w = SHEET_CANVAS.width;
@@ -486,6 +571,12 @@ const SheetRender = (function () {
             if (overlay && vdValue !== null && vdValue !== undefined) {
                 img = SheetText.drawTextOnSlot(slot.px, slot.w, slot.h,
                                                overlay, vdValue, tmpl);
+                // Text is artwork too: cut at the sewing line like the logo.
+                // drawTextOnSlot hands back a copy, so the cached slot is safe.
+                if (entry.sewingBufferPx > 0 && img !== slot) {
+                    Place.clipOutside(img.px, img.w, img.h,
+                                      bleedPx + entry.sewingBufferPx);
+                }
             }
 
             const [cx, cy] = sheet.centers[slotIdx];
@@ -775,6 +866,7 @@ const SheetRender = (function () {
                 offsetY: entry.offsetY,
                 rotation: entry.rotation,
                 applyTemplateRotation: false,
+                bufferPx: entry.sewingBufferPx || 0,
             });
             if (!turned) return prepared;
             const r = Place.rotateExpand(prepared.px, prepared.w, prepared.h, 90);
@@ -784,6 +876,7 @@ const SheetRender = (function () {
 
     function renderPackedSheet(opts, sheetNum, plan, prepared) {
         const { logoEntries, logoSize, projectName } = opts;
+        const bleedPx = pyRound(parseFloat(opts.bleed || 0) * SHEET_CANVAS.dpi);
         const sheet = plan.sheets[sheetNum];
         const tmpl = SHEET_TEMPLATES[logoSize];
         const w = SHEET_CANVAS.width;
@@ -803,6 +896,12 @@ const SheetRender = (function () {
             if (overlay && vdValue !== null && vdValue !== undefined) {
                 img = SheetText.drawTextOnSlot(slot.px, slot.w, slot.h,
                                                overlay, vdValue, tmpl);
+                // Text is artwork too: cut at the sewing line like the logo.
+                // drawTextOnSlot hands back a copy, so the cached slot is safe.
+                if (entry.sewingBufferPx > 0 && img !== slot) {
+                    Place.clipOutside(img.px, img.w, img.h,
+                                      bleedPx + entry.sewingBufferPx);
+                }
             }
 
             const [cx, cy] = sheet.centers[slotIdx];
@@ -929,6 +1028,9 @@ const SheetRender = (function () {
         renderEmptyTemplate,
         renderSlotOverlay,
         renderPackedSlotOverlay,
+        drawSewingOutlines,
+        renderSewingOverlay,
+        sewingBuffersBySheet,
         hexToRgba,
         planSlots,
         prepareEntries,

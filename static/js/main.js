@@ -30,6 +30,7 @@ const viewport = document.getElementById("preview-viewport");
 const previewTransform = document.getElementById("preview-transform");
 const showLogoOutline = document.getElementById("show-logo-outline");
 const showBleedOutline = document.getElementById("show-bleed-outline");
+const showSewingOutline = document.getElementById("show-sewing-outline");
 const zoomInBtn = document.getElementById("zoom-in");
 const zoomOutBtn = document.getElementById("zoom-out");
 const zoomFitBtn = document.getElementById("zoom-fit");
@@ -258,7 +259,8 @@ async function addLogo(file) {
         id: nextLogoId++,
         file: file,
         objectUrl: URL.createObjectURL(file),
-        editorState: { scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null, background: null },
+        editorState: { scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null,
+                       background: null, sewingBuffer: "none" },
         quantity: 1,
         validation: null,
         cachedMeta: null,
@@ -382,7 +384,12 @@ function logoPrintResolution(entry) {
 
     // prepareLogo rotates by -rotation before fitting, so measure the same box.
     const rot = Place.rotatedSize(meta.width, meta.height, -(st.rotation || 0));
-    const fit = Place.fitMetrics(rot.w, rot.h, tmpl, bleedPx, { logoScale: st.scale });
+    // The sewing buffer has to be passed here too, or this number quietly
+    // disagrees with the sheet: the buffer shrinks the fit, so DPI rises.
+    const fit = Place.fitMetrics(rot.w, rot.h, tmpl, bleedPx, {
+        logoScale: st.scale,
+        bufferPx: AppRender.sewingBufferPx(st.sewingBuffer),
+    });
 
     // Drawn at 300 DPI, so the ratio of source to drawn pixels is the real
     // resolution. The tighter of the two axes governs.
@@ -390,6 +397,80 @@ function logoPrintResolution(entry) {
         * Math.min(rot.w / fit.scaledW, rot.h / fit.scaledH));
 
     return { dpi, neededW: fit.scaledW, neededH: fit.scaledH };
+}
+
+// ---- Sewing buffer ----
+//
+// With a buffer the artwork is fitted inside the sewing line and cut off at it
+// (PLAN_sewing_buffer.md). Scale above 100% or dragging can still push it over
+// the line; nothing is clamped, so the editor and the queue say how far.
+
+// The bounding box of a logo's visible pixels, in source pixels. Judged on the
+// ink, not the image: a logo with transparent margins is not trimmed just
+// because its canvas is. Cached against the decoded pixels it came from.
+function inkBoxOf(entry) {
+    const pixels = AppRender.entryPixels(entry);
+    if (!pixels) return null;
+    if (entry.inkBoxFor === pixels) return entry.inkBox;
+    const { px, w, h } = pixels;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) {
+        let i = y * w * 4 + 3;
+        for (let x = 0; x < w; x++, i += 4) {
+            if (px[i] > 8) {
+                if (x < x0) x0 = x;
+                if (x > x1) x1 = x;
+                if (y < y0) y0 = y;
+                y1 = y;
+            }
+        }
+    }
+    entry.inkBox = x1 < 0 ? null : { x0, y0, x1: x1 + 1, y1: y1 + 1, w, h };
+    entry.inkBoxFor = pixels;
+    return entry.inkBox;
+}
+
+// How far a logo's ink reaches past its sewing line, in sheet pixels, for the
+// placement `st` (the saved state, or the editor's working copy). 0 inside.
+function sewingOverhang(entry, st) {
+    const bufferPx = AppRender.sewingBufferPx(st.sewingBuffer);
+    if (!bufferPx) return 0;
+    const ink = inkBoxOf(entry);
+    if (!ink) return 0;
+    const tmpl = SHEET_TEMPLATES[logoSizeSelect.value];
+    const rotation = st.rotation || 0;
+    const rot = Place.rotatedSize(ink.w, ink.h, -rotation);
+    const fit = Place.fitMetrics(rot.w, rot.h, tmpl, currentBleedPx(),
+                                 { logoScale: st.scale, bufferPx });
+    const k = fit.scaledW / rot.w;      // source pixels to sheet pixels
+    const th = rotation * Math.PI / 180;
+    const c = Math.cos(th), s = Math.sin(th);
+    let over = 0;
+    for (const [x, y] of [[ink.x0, ink.y0], [ink.x1, ink.y0],
+                          [ink.x0, ink.y1], [ink.x1, ink.y1]]) {
+        const dx = (x - ink.w / 2) * k;
+        const dy = (y - ink.h / 2) * k;
+        const X = dx * c - dy * s + (st.offsetX || 0);
+        const Y = dx * s + dy * c + (st.offsetY || 0);
+        over = Math.max(over, Math.abs(X) - fit.fitW / 2, Math.abs(Y) - fit.fitH / 2);
+    }
+    // Under two pixels is rounding, not artwork over the line.
+    return over >= 2 ? over : 0;
+}
+
+function inches(px) {
+    return (px / SHEET_CANVAS.dpi).toFixed(2) + '"';
+}
+
+function sewingBadges(entry) {
+    const st = entry.editorState;
+    if (!AppRender.sewingBufferPx(st.sewingBuffer)) return [];
+    const badges = [`<span class="val-badge sew">Sew ${AppRender.sewingBuffer(st.sewingBuffer).label}</span>`];
+    const over = sewingOverhang(entry, st);
+    if (over) {
+        badges.push(`<span class="val-badge yellow">Crosses the sewing line by ${inches(over)}</span>`);
+    }
+    return badges;
 }
 
 function resolutionBadge(entry) {
@@ -415,6 +496,7 @@ function getValidationSummary(entry) {
     }
     const res = resolutionBadge(entry);
     if (res) issues.push(res);
+    issues.push(...sewingBadges(entry));
 
     // Variable data mismatch warning
     if (entry.editorState.textOverlay?.enabled) {
@@ -660,7 +742,9 @@ function renderPreviewSheets(sheets) {
     currentSheetCount = sheetCount;
 
     releaseSheetUrls();
-    currentSheetUrls = sheets.map(s => s.url);
+    // The sewing overlays follow the queue, so they are not cached and are
+    // released with the sheets.
+    currentSheetUrls = sheets.flatMap(s => [s.url, s.sew].filter(Boolean));
     previewTransform.innerHTML = "";
 
     // Sheets can differ in height, so the view has to fit the tallest.
@@ -669,7 +753,8 @@ function renderPreviewSheets(sheets) {
 
     for (let i = 0; i < sheetCount; i++) {
         const { url: sheetUrl, oLogo: overlaySrcLogo,
-                oBleed: overlaySrcBleed, guides: guidesSrc } = sheets[i];
+                oBleed: overlaySrcBleed, guides: guidesSrc,
+                sew: overlaySrcSew } = sheets[i];
         const wrapper = document.createElement("div");
         wrapper.className = "sheet-wrapper";
 
@@ -714,6 +799,16 @@ function renderPreviewSheets(sheets) {
             oBleed.draggable = false;
             if (!showBleedOutline.checked) oBleed.style.display = "none";
             imagesDiv.appendChild(oBleed);
+        }
+
+        // Only on sheets that carry a logo with a sewing buffer.
+        if (overlaySrcSew) {
+            const oSew = document.createElement("img");
+            oSew.className = "overlay-sewing";
+            oSew.src = overlaySrcSew;
+            oSew.draggable = false;
+            if (!showSewingOutline.checked) oSew.style.display = "none";
+            imagesDiv.appendChild(oSew);
         }
 
         // The packed sheet's own cut lines, redrawn at preview scale. They are
@@ -775,8 +870,12 @@ async function generatePreview() {
                 ls, size, layoutMode.value, cutMarginInches());
             sheets.push({ url: urls[i], oLogo, oBleed, guides });
         }
+        // The magenta sewing line, per slot, on the logos that have one.
+        const sewUrls = await AppRender.sewingOverlayURLs(options);
+        sheets.forEach((s, i) => { s.sew = sewUrls[i] || null; });
         if (token !== previewToken) {
             for (const u of urls) URL.revokeObjectURL(u);
+            for (const u of sewUrls) if (u) URL.revokeObjectURL(u);
             return;
         }
 
@@ -944,11 +1043,13 @@ logoSizeSelect.addEventListener("change", () => {
     logoLabel.textContent = SIZE_LABELS[logoSizeSelect.value] || SIZE_LABELS["3x3"];
     syncLayoutControls();
 
-    // Reset placement/text state, but keep the per-logo background (an image property).
+    // Reset placement/text state, but keep the per-logo background (an image
+    // property) and sewing buffer (a property of the sewing, not the placement).
     for (const entry of logoQueue) {
         entry.editorState = {
             scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null,
             background: entry.editorState.background || null,
+            sewingBuffer: entry.editorState.sewingBuffer || "none",
         };
         entry.variableData = null;
     }
@@ -1008,6 +1109,11 @@ showLogoOutline.addEventListener("change", () => {
 showBleedOutline.addEventListener("change", () => {
     document.querySelectorAll(".overlay-bleed").forEach(el => {
         el.style.display = showBleedOutline.checked ? "" : "none";
+    });
+});
+showSewingOutline.addEventListener("change", () => {
+    document.querySelectorAll(".overlay-sewing").forEach(el => {
+        el.style.display = showSewingOutline.checked ? "" : "none";
     });
 });
 
@@ -1190,7 +1296,8 @@ const editorCancelBtn = document.getElementById("editor-cancel");
 const editorResetBtn = document.getElementById("editor-reset");
 const editorCloseBtn = document.getElementById("editor-close");
 
-let editorWork = { scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null, background: null };
+let editorWork = { scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null,
+                   background: null, sewingBuffer: "none" };
 let editorLogoImg = null;
 let editorTargetId = null;  // which queue entry is being edited
 let editorDragging = false;
@@ -1214,6 +1321,12 @@ const textAlignBtns = document.querySelectorAll(".text-align-btn");
 const bgBtns = document.querySelectorAll(".bg-btn");
 const editorBgColor = document.getElementById("editor-bg-color");
 
+// Sewing buffer refs
+const sewBtns = document.querySelectorAll(".sew-btn");
+const editorSewNote = document.getElementById("editor-sew-note");
+const editorSewAllWrap = document.getElementById("editor-sew-all-wrap");
+const editorSewAll = document.getElementById("editor-sew-all");
+
 const EDITOR_DISPLAY_W = 480;
 let editorDisplayScale = 1;
 
@@ -1222,10 +1335,15 @@ function getEditorDims() {
     const bleed_px = Math.round(parseFloat(bleedSelect.value) * 300);
     const placed_w = tmpl.logo_w + 2 * bleed_px;
     const placed_h = tmpl.logo_h + 2 * bleed_px;
+    // The fit box: the placed area, or the sewing box when there is a buffer.
+    // The artwork is fitted into it and cut off at its edge.
+    const buffer_px = AppRender.sewingBufferPx(editorWork.sewingBuffer);
+    const fit_w = buffer_px ? tmpl.logo_w - 2 * buffer_px : placed_w;
+    const fit_h = buffer_px ? tmpl.logo_h - 2 * buffer_px : placed_h;
     return {
         slot_w: tmpl.slot_w, slot_h: tmpl.slot_h,
         logo_w: tmpl.logo_w, logo_h: tmpl.logo_h,
-        placed_w, placed_h, bleed_px,
+        placed_w, placed_h, bleed_px, buffer_px, fit_w, fit_h,
     };
 }
 
@@ -1255,7 +1373,7 @@ function getLogoDrawMetrics() {
     const as = Math.abs(Math.sin(th));
     const fitBBoxW = iw * ac + ih * as;
     const fitBBoxH = iw * as + ih * ac;
-    const k = Math.min(dims.placed_w / fitBBoxW, dims.placed_h / fitBBoxH);
+    const k = Math.min(dims.fit_w / fitBBoxW, dims.fit_h / fitBBoxH);
     const drawW = iw * k * editorWork.scale;
     const drawH = ih * k * editorWork.scale;
     // Bounding box of the drawn (scaled) logo after rotation — used for edge alignment.
@@ -1267,7 +1385,9 @@ function getLogoDrawMetrics() {
 function drawEditor() {
     const dims = getEditorDims();
     const ctx = editorCtx;
-    const { slot_w, slot_h, logo_w, logo_h, placed_w, placed_h } = dims;
+    const { slot_w, slot_h, logo_w, logo_h, placed_w, placed_h, fit_w, fit_h } = dims;
+    const fitX = (slot_w - fit_w) / 2;
+    const fitY = (slot_h - fit_h) / 2;
 
     ctx.clearRect(0, 0, slot_w, slot_h);
 
@@ -1289,14 +1409,14 @@ function drawEditor() {
 
     if (editorLogoImg) {
         const m = getLogoDrawMetrics();
-        const placedX = (slot_w - placed_w) / 2;
-        const placedY = (slot_h - placed_h) / 2;
         const centerX = slot_w / 2 + editorWork.offsetX;
         const centerY = slot_h / 2 + editorWork.offsetY;
 
+        // Cut at the fit box, as the renderer does: the placed area, or the
+        // sewing line when there is a buffer.
         ctx.save();
         ctx.beginPath();
-        ctx.rect(placedX, placedY, placed_w, placed_h);
+        ctx.rect(fitX, fitY, fit_w, fit_h);
         ctx.clip();
         ctx.translate(centerX, centerY);
         ctx.rotate(m.th);
@@ -1322,10 +1442,22 @@ function drawEditor() {
     ctx.setLineDash([]);
     ctx.strokeRect(logoAreaX, logoAreaY, logo_w, logo_h);
 
+    if (dims.buffer_px) {
+        ctx.strokeStyle = "rgba(255, 0, 255, 0.85)";
+        ctx.strokeRect(fitX, fitY, fit_w, fit_h);
+    }
+
     ctx.setLineDash([]);
 
-    // Draw text overlay placeholder
+    // Draw text overlay placeholder. Text is artwork, so it is cut at the
+    // sewing line too.
     if (editorWork.textOverlay?.enabled) {
+        ctx.save();
+        if (dims.buffer_px) {
+            ctx.beginPath();
+            ctx.rect(fitX, fitY, fit_w, fit_h);
+            ctx.clip();
+        }
         const t = editorWork.textOverlay;
         const weightStr = t.fontWeight === "bold" ? "bold " : "";
         ctx.font = `${weightStr}${t.fontSize}px "${t.fontFamily}", sans-serif`;
@@ -1336,7 +1468,10 @@ function drawEditor() {
         // Reset
         ctx.textAlign = "start";
         ctx.textBaseline = "alphabetic";
+        ctx.restore();
     }
+
+    syncSewNote();
 }
 
 // ---- Open editor for a specific queue entry ----
@@ -1358,7 +1493,11 @@ function openEditorFor(id) {
                 ? { ...entry.editorState.textOverlay }
                 : null,
             background: entry.editorState.background || null,
+            sewingBuffer: entry.editorState.sewingBuffer || "none",
         };
+        editorSewAll.checked = false;
+        editorSewAllWrap.hidden = logoQueue.length < 2;
+        syncSewControlsToState();
         editorScaleSlider.value = Math.round(editorWork.scale * 100);
         editorScaleLabel.textContent = Math.round(editorWork.scale * 100) + "%";
         syncTextControlsToState();
@@ -1413,6 +1552,61 @@ editorBgColor.addEventListener("input", () => {
     drawEditor();
 });
 
+// ---- Sewing buffer controls ----
+// editorWork.sewingBuffer is an id from AppRender.SEWING_BUFFERS.
+function syncSewControlsToState() {
+    const id = editorWork.sewingBuffer || "none";
+    sewBtns.forEach((b) => b.classList.toggle("active", b.dataset.sew === id));
+}
+
+// The readout under the buttons: where the line is and what it leaves, and a
+// warning when the artwork has been pushed over it.
+function syncSewNote() {
+    const dims = getEditorDims();
+    if (!dims.buffer_px) {
+        editorSewNote.innerHTML = "";
+        return;
+    }
+    const kept = Math.round(100 * dims.fit_w * dims.fit_h / (dims.logo_w * dims.logo_h));
+    let html = `<span class="sew-swatch"></span>Sewing line ${inches(dims.fit_w)} × `
+        + `${inches(dims.fit_h)}, ${kept}% of the label`;
+    const entry = getEntry(editorTargetId);
+    const over = entry ? sewingOverhang(entry, editorWork) : 0;
+    if (over) {
+        html += `<br><span class="warn">Artwork crosses it by ${inches(over)} and is cut off there.</span>`;
+    }
+    if (textCrossesSewingLine(dims)) {
+        html += `<br><span class="warn">Text crosses it and is cut off there.</span>`;
+    }
+    editorSewNote.innerHTML = html;
+}
+
+// Whether the text placeholder reaches past the sewing line, measured the way
+// the drag hit-test measures it. Approximate: the sheet sets real values in
+// the browser's own glyphs, but a text box over the line is worth a word.
+function textCrossesSewingLine(dims) {
+    const t = editorWork.textOverlay;
+    if (!t?.enabled) return false;
+    const weightStr = t.fontWeight === "bold" ? "bold " : "";
+    editorCtx.font = `${weightStr}${t.fontSize}px "${t.fontFamily}", sans-serif`;
+    const tw = editorCtx.measureText("{{name}}").width;
+    let tx = t.x;
+    if (t.alignment === "center") tx -= tw / 2;
+    else if (t.alignment === "right") tx -= tw;
+    const fx = (dims.slot_w - dims.fit_w) / 2;
+    const fy = (dims.slot_h - dims.fit_h) / 2;
+    return tx < fx || t.y < fy
+        || tx + tw > fx + dims.fit_w || t.y + t.fontSize > fy + dims.fit_h;
+}
+
+sewBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+        editorWork.sewingBuffer = btn.dataset.sew;
+        syncSewControlsToState();
+        drawEditor();
+    });
+});
+
 // ---- Close helpers ----
 function closeEditor() {
     editorOverlay.classList.remove("visible");
@@ -1440,7 +1634,14 @@ editorSaveBtn.addEventListener("click", () => {
             rotation: editorWork.rotation || 0,
             textOverlay: editorWork.textOverlay ? { ...editorWork.textOverlay } : null,
             background: editorWork.background || null,
+            sewingBuffer: editorWork.sewingBuffer || "none",
         };
+        // One sewing line usually serves the whole job.
+        if (editorSewAll.checked) {
+            for (const other of logoQueue) {
+                other.editorState.sewingBuffer = editorWork.sewingBuffer || "none";
+            }
+        }
         // Clear variable data if text was removed
         if (!editorWork.textOverlay?.enabled) {
             entry.variableData = null;
@@ -1455,7 +1656,10 @@ editorSaveBtn.addEventListener("click", () => {
 
 // ---- Reset ----
 editorResetBtn.addEventListener("click", () => {
-    editorWork = { scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null, background: null };
+    // The sewing buffer survives a reset: it is about the sewing, not the
+    // placement, and losing it silently is the dangerous direction.
+    editorWork = { scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null,
+                   background: null, sewingBuffer: editorWork.sewingBuffer || "none" };
     editorScaleSlider.value = 100;
     editorScaleLabel.textContent = "100%";
     syncTextControlsToState();
@@ -1500,11 +1704,15 @@ rotateStepBtns.forEach((btn) => {
 document.querySelectorAll(".align-btn").forEach(btn => {
     btn.addEventListener("click", () => {
         const dims = getEditorDims();
-        const { slot_w, slot_h, logo_w, logo_h, placed_w, placed_h } = dims;
+        const { placed_w, placed_h, buffer_px, fit_w, fit_h } = dims;
         // Use the logo's actual rotated bounding box so edges snap correctly.
         const m = getLogoDrawMetrics();
         const scaledW = m ? m.bboxW : placed_w * editorWork.scale;
         const scaledH = m ? m.bboxH : placed_h * editorWork.scale;
+        // The edge to snap to: the sewing line when there is one, the label
+        // edge otherwise.
+        const logo_w = buffer_px ? fit_w : dims.logo_w;
+        const logo_h = buffer_px ? fit_h : dims.logo_h;
         const align = btn.dataset.align;
 
         switch (align) {

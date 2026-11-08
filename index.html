@@ -123,6 +123,10 @@
                     <input type="checkbox" id="show-bleed-outline" checked>
                     <span>Show bleed outline</span>
                 </label>
+                <label class="toggle-label">
+                    <input type="checkbox" id="show-sewing-outline" checked>
+                    <span>Show sewing outline</span>
+                </label>
             </div>
 
             <div class="panel-section" id="service-section">
@@ -211,6 +215,20 @@
                             <button type="button" class="btn-icon bg-btn" data-bg="color" title="Solid color background">Color</button>
                         </span>
                         <input type="color" id="editor-bg-color" value="#ffffff" title="Background color">
+                    </div>
+                    <div class="editor-bg-row editor-sew-row">
+                        <label>Sewing buffer</label>
+                        <span class="align-group" id="editor-sew-group">
+                            <button type="button" class="btn-icon sew-btn" data-sew="none" title="No sewing buffer: artwork may reach the label edge">None</button>
+                            <button type="button" class="btn-icon sew-btn" data-sew="3mm" title="Keep artwork 3 mm inside the label edge">3 mm</button>
+                            <button type="button" class="btn-icon sew-btn" data-sew="4mm" title="Keep artwork 4 mm inside the label edge">4 mm</button>
+                            <button type="button" class="btn-icon sew-btn" data-sew="0.25in" title="Keep artwork a quarter inch inside the label edge">&frac14;"</button>
+                        </span>
+                        <div class="editor-sew-note" id="editor-sew-note"></div>
+                        <label class="toggle-label editor-sew-all" id="editor-sew-all-wrap" hidden>
+                            <input type="checkbox" id="editor-sew-all">
+                            <span>Use on every logo</span>
+                        </label>
                     </div>
                     <div class="editor-text-section" id="editor-text-section">
                         <button type="button" class="btn btn-secondary btn-add-text" id="editor-add-text">+ Add Text</button>

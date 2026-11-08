@@ -168,35 +168,73 @@ const Place = (function () {
      * Split out of prepareLogo so the resolution check in main.js can use the
      * very same maths rather than a copy that drifts.
      *
-     * @returns {{placedW, placedH, scaledW, scaledH}} all in sheet pixels
+     * A sewing buffer (`opts.bufferPx`) changes the box the artwork is FITTED
+     * into, not the box it is placed in. Without one the artwork fills the
+     * placed area, bleed included, exactly as before. With one it fits the
+     * sewing box -- the label inset by the buffer -- which ignores the bleed:
+     * bleed is ink deliberately run past the cut, and the stitching sits
+     * inside it. See PLAN_sewing_buffer.md.
+     *
+     * @returns {{placedW, placedH, fitW, fitH, scaledW, scaledH}} all in sheet
+     *     pixels; fitW/fitH is the sewing box when there is a buffer
      */
     function fitMetrics(w, h, tmpl, bleedPx, opts) {
         const options = opts || {};
         const logoScale = options.logoScale === undefined ? 1.0 : options.logoScale;
+        const bufferPx = options.bufferPx || 0;
 
         const pw = Math.max(1, pyRound(tmpl.logo_w + 2 * bleedPx));
         const ph = Math.max(1, pyRound(tmpl.logo_h + 2 * bleedPx));
+        const fw = bufferPx > 0 ? Math.max(1, pyRound(tmpl.logo_w - 2 * bufferPx)) : pw;
+        const fh = bufferPx > 0 ? Math.max(1, pyRound(tmpl.logo_h - 2 * bufferPx)) : ph;
 
-        // Rotate-then-fit: the rotated bounding box is fitted into the placed
-        // area so the whole logo stays visible at any angle.
+        // Rotate-then-fit: the rotated bounding box is fitted into the fit
+        // box so the whole logo stays visible at any angle.
         const imgAspect = w / h;
-        const boxAspect = pw / ph;
+        const boxAspect = fw / fh;
         let scaledW;
         let scaledH;
         if (imgAspect > boxAspect) {
-            scaledW = pw;
-            scaledH = Math.max(1, pyRound(pw / imgAspect));
+            scaledW = fw;
+            scaledH = Math.max(1, pyRound(fw / imgAspect));
         } else {
-            scaledH = ph;
-            scaledW = Math.max(1, pyRound(ph * imgAspect));
+            scaledH = fh;
+            scaledW = Math.max(1, pyRound(fh * imgAspect));
         }
 
         return {
             placedW: pw,
             placedH: ph,
+            fitW: fw,
+            fitH: fh,
             scaledW: Math.max(1, pyRound(scaledW * logoScale)),
             scaledH: Math.max(1, pyRound(scaledH * logoScale)),
         };
+    }
+
+    /**
+     * Clear everything outside a centred box, inset `inset` pixels from every
+     * edge. This is how artwork is cut at the sewing line: the prepared slot
+     * is the placed box, and the sewing box sits bleed + buffer inside it on
+     * all four sides, whichever way the slot has been turned. In place.
+     * Mirrors _clip_outside() in core/generator.py.
+     */
+    function clipOutside(px, w, h, inset) {
+        if (inset <= 0) return;
+        const x0 = Math.min(w, inset);
+        const x1 = Math.max(x0, w - inset);
+        const y0 = Math.min(h, inset);
+        const y1 = Math.max(y0, h - inset);
+        const stride = w * 4;
+        for (let y = 0; y < h; y++) {
+            const row = y * stride;
+            if (y < y0 || y >= y1) {
+                px.fill(0, row, row + stride);
+            } else {
+                px.fill(0, row, row + x0 * 4);
+                px.fill(0, row + x1 * 4, row + stride);
+            }
+        }
     }
 
     // Dispatch matching Image.rotate(angle, expand=True): exact for the
@@ -299,6 +337,7 @@ const Place = (function () {
         const offsetX = options.offsetX || 0;
         const offsetY = options.offsetY || 0;
         const rotation = options.rotation || 0;
+        const bufferPx = options.bufferPx || 0;
         // The packed layout skips the template's own rotation: that exists
         // because the jig sits turned on the sheet, and it does not use slots.
         const applyTemplateRotation = options.applyTemplateRotation !== false;
@@ -318,7 +357,7 @@ const Place = (function () {
             inexact = Boolean(r.inexact);
         }
 
-        const fit = fitMetrics(w, h, tmpl, bleedPx, { logoScale });
+        const fit = fitMetrics(w, h, tmpl, bleedPx, { logoScale, bufferPx });
         const pw = fit.placedW;
         const ph = fit.placedH;
         const scaledW = fit.scaledW;
@@ -332,6 +371,9 @@ const Place = (function () {
         // Straight copy: `placed` is fully transparent, so this reproduces the
         // resized logo exactly, antialiased edges included.
         pasteOpaqueMask(placed, pw, ph, resized, scaledW, scaledH, pasteX, pasteY);
+        // Nothing past the sewing line, however far scale or offset pushed it.
+        // The background is filled from the slot later, so it is untouched.
+        if (bufferPx > 0) clipOutside(placed, pw, ph, bleedPx + bufferPx);
 
         if (applyTemplateRotation && tmpl.rotate) {
             const r = rotateExpand(placed, pw, ph, tmpl.rotate);
@@ -379,6 +421,7 @@ const Place = (function () {
         expandedSize,
         rotatedSize,
         fitMetrics,
+        clipOutside,
         pasteOpaqueMask,
         alphaComposite,
         fillRect,
