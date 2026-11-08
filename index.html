@@ -208,6 +208,28 @@
                             <button type="button" class="btn-icon align-btn" data-align="bottom" title="Align bottom">&#9660;</button>
                         </span>
                     </div>
+                    <div class="editor-bg-row editor-image-row">
+                        <label>Image</label>
+                        <span class="align-group">
+                            <button type="button" class="btn-icon bg-btn" id="editor-crop-open" title="Cut away part of the supplied image">Crop&hellip;</button>
+                            <button type="button" class="btn-icon bg-btn" id="editor-trim" title="Find empty margins and stray lines along the edges">Trim edges</button>
+                        </span>
+                        <div class="editor-sew-note" id="editor-image-note"></div>
+                    </div>
+                    <div class="crop-panel" id="editor-crop-panel">
+                        <label class="crop-title">Crop</label>
+                        <div class="crop-readout" id="editor-crop-readout"></div>
+                        <div class="editor-sew-note" id="editor-crop-msg"></div>
+                        <span class="align-group">
+                            <button type="button" class="btn-icon bg-btn" id="editor-crop-trim">Trim edges</button>
+                            <button type="button" class="btn-icon bg-btn" id="editor-crop-all">Whole image</button>
+                        </span>
+                        <div class="editor-sew-note">Drag an edge or a corner, or drag inside the box to move it. The crop is taken from the supplied file, before Rotate.</div>
+                        <div class="editor-actions">
+                            <button type="button" class="btn btn-secondary" id="editor-crop-cancel">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="editor-crop-apply">Apply crop</button>
+                        </div>
+                    </div>
                     <div class="editor-bg-row">
                         <label>Background</label>
                         <span class="align-group">

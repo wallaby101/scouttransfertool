@@ -589,6 +589,73 @@ input[type="text"]:focus,
     font-size: 0.72rem;
 }
 
+/* ---- Crop ---- */
+/* While cropping, the crop panel takes over the control column: the
+   placement controls do not apply to the crop view, so they go. */
+.crop-panel {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.modal-controls.cropping > :not(.crop-panel) {
+    display: none;
+}
+
+.modal-controls.cropping > .crop-panel {
+    display: flex;
+}
+
+.crop-panel .crop-title {
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.crop-panel .editor-actions {
+    margin-top: auto;
+}
+
+.crop-readout {
+    font-size: 0.74rem;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+}
+
+.crop-readout div {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.crop-readout .k {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.crop-readout .v {
+    font-weight: 600;
+    text-align: right;
+}
+
+.crop-readout .v.yellow { color: #facc15; }
+.crop-readout .v.red { color: #f87171; }
+
+.editor-sew-note .linkbtn {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: #E8508B;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+#editor-canvas.cropping {
+    cursor: crosshair;
+}
+
 /* The one new colour: the sewing line, here as on the canvas and the sheet. */
 .sew-swatch {
     display: inline-block;

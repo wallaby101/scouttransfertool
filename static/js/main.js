@@ -260,7 +260,7 @@ async function addLogo(file) {
         file: file,
         objectUrl: URL.createObjectURL(file),
         editorState: { scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null,
-                       background: null, sewingBuffer: "none" },
+                       background: null, sewingBuffer: "none", crop: null },
         quantity: 1,
         validation: null,
         cachedMeta: null,
@@ -308,6 +308,7 @@ function removeLogo(id) {
     const idx = logoQueue.findIndex(e => e.id === id);
     if (idx === -1) return;
     URL.revokeObjectURL(logoQueue[idx].objectUrl);
+    if (logoQueue[idx].thumbUrl) URL.revokeObjectURL(logoQueue[idx].thumbUrl);
     logoQueue.splice(idx, 1);
     renderQueue();
     updateSlotCounter();
@@ -346,7 +347,7 @@ function renderQueue() {
         const validationSummary = getValidationSummary(entry);
 
         return `<div class="queue-row${errorClass}" data-id="${entry.id}">
-            <img class="queue-thumb" src="${entry.objectUrl}" alt="">
+            <img class="queue-thumb" src="${entry.thumbUrl || entry.objectUrl}" alt="">
             <span class="queue-filename" title="${escapeHTML(entry.file.name)}">${escapeHTML(entry.file.name)}</span>
             <div class="queue-qty">
                 <button type="button" class="btn-icon qty-minus" title="Decrease">-</button>
@@ -383,7 +384,10 @@ function logoPrintResolution(entry) {
     const st = entry.editorState;
 
     // prepareLogo rotates by -rotation before fitting, so measure the same box.
-    const rot = Place.rotatedSize(meta.width, meta.height, -(st.rotation || 0));
+    // A crop is what the renderer is given, so it is what is measured.
+    const srcW = st.crop ? st.crop.w : meta.width;
+    const srcH = st.crop ? st.crop.h : meta.height;
+    const rot = Place.rotatedSize(srcW, srcH, -(st.rotation || 0));
     // The sewing buffer has to be passed here too, or this number quietly
     // disagrees with the sheet: the buffer shrinks the fit, so DPI rises.
     const fit = Place.fitMetrics(rot.w, rot.h, tmpl, bleedPx, {
@@ -396,7 +400,11 @@ function logoPrintResolution(entry) {
     const dpi = Math.round(SHEET_CANVAS.dpi
         * Math.min(rot.w / fit.scaledW, rot.h / fit.scaledH));
 
-    return { dpi, neededW: fit.scaledW, neededH: fit.scaledH };
+    // "Supply W x H" asks for the whole file at the size that prints sharp,
+    // so with a crop it is scaled back up to the full image.
+    const neededW = st.crop ? Math.round(fit.scaledW * meta.width / st.crop.w) : fit.scaledW;
+    const neededH = st.crop ? Math.round(fit.scaledH * meta.height / st.crop.h) : fit.scaledH;
+    return { dpi, neededW, neededH };
 }
 
 // ---- Sewing buffer ----
@@ -405,11 +413,24 @@ function logoPrintResolution(entry) {
 // (PLAN_sewing_buffer.md). Scale above 100% or dragging can still push it over
 // the line; nothing is clamped, so the editor and the queue say how far.
 
-// The bounding box of a logo's visible pixels, in source pixels. Judged on the
-// ink, not the image: a logo with transparent margins is not trimmed just
-// because its canvas is. Cached against the decoded pixels it came from.
-function inkBoxOf(entry) {
-    const pixels = AppRender.entryPixels(entry);
+// The bounding box of a logo's visible pixels, judged on the ink, not the
+// image: a logo with transparent margins is not trimmed just because its
+// canvas is. Measured once on the supplied image, then intersected with the
+// crop (st.crop), and returned in the cropped image's own coordinates.
+function inkBoxOf(entry, crop) {
+    const ink = sourceInkBox(entry);
+    if (!ink) return null;
+    if (!crop) return ink;
+    const x0 = Math.max(ink.x0, crop.x) - crop.x;
+    const y0 = Math.max(ink.y0, crop.y) - crop.y;
+    const x1 = Math.min(ink.x1, crop.x + crop.w) - crop.x;
+    const y1 = Math.min(ink.y1, crop.y + crop.h) - crop.y;
+    if (x1 <= x0 || y1 <= y0) return null;
+    return { x0, y0, x1, y1, w: crop.w, h: crop.h };
+}
+
+function sourceInkBox(entry) {
+    const pixels = AppRender.sourcePixels(entry);
     if (!pixels) return null;
     if (entry.inkBoxFor === pixels) return entry.inkBox;
     const { px, w, h } = pixels;
@@ -435,7 +456,7 @@ function inkBoxOf(entry) {
 function sewingOverhang(entry, st) {
     const bufferPx = AppRender.sewingBufferPx(st.sewingBuffer);
     if (!bufferPx) return 0;
-    const ink = inkBoxOf(entry);
+    const ink = inkBoxOf(entry, st.crop);
     if (!ink) return 0;
     const tmpl = SHEET_TEMPLATES[logoSizeSelect.value];
     const rotation = st.rotation || 0;
@@ -473,6 +494,126 @@ function sewingBadges(entry) {
     return badges;
 }
 
+// ---- Crop and Trim edges ----
+//
+// A crop is a rectangle of the supplied image, in its own pixels, kept in
+// editorState.crop. AppRender.entryPixels() applies it as a straight row copy,
+// so to the renderer the cropped pixels simply are the logo. See PLAN_crop.md.
+
+// What "Trim edges" removes, and deliberately nothing else:
+//   * transparent margins: edge rows and columns that are all (near) clear
+//   * hairlines: an outermost row or column, at most 2 px deep, of one flat
+//     colour that differs from the flat colour just inside it. A thicker
+//     border is design, and is left alone.
+// Returns { box, margins: [side, px][], hairlines: [side, px][] }.
+function findTrim(src) {
+    const { px, w, h } = src;
+    const box = { x: 0, y: 0, w, h };
+    function linePixels(side, k) {
+        const idx = [];
+        if (side === "top" || side === "bottom") {
+            const y = side === "top" ? box.y + k : box.y + box.h - 1 - k;
+            for (let x = box.x; x < box.x + box.w; x++) idx.push((y * w + x) * 4);
+        } else {
+            const x = side === "left" ? box.x + k : box.x + box.w - 1 - k;
+            for (let y = box.y; y < box.y + box.h; y++) idx.push((y * w + x) * 4);
+        }
+        return idx;
+    }
+    const clear = (idx) => idx.every((i) => px[i + 3] <= 8);
+    function flat(idx) {
+        const i0 = idx[0];
+        for (const i of idx) {
+            for (let c = 0; c < 4; c++) if (Math.abs(px[i + c] - px[i0 + c]) > 6) return null;
+        }
+        return [px[i0], px[i0 + 1], px[i0 + 2], px[i0 + 3]];
+    }
+    const differs = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i]))) > 24;
+    function cut(side, n) {
+        if (side === "top") { box.y += n; box.h -= n; }
+        else if (side === "bottom") box.h -= n;
+        else if (side === "left") { box.x += n; box.w -= n; }
+        else box.w -= n;
+    }
+
+    const margins = [];
+    const hairlines = [];
+    for (const side of ["top", "bottom", "left", "right"]) {
+        let n = 0;
+        while (box.w > 2 && box.h > 2 && clear(linePixels(side, 0))) { cut(side, 1); n++; }
+        if (n) { margins.push([side, n]); continue; }
+        for (const depth of [1, 2]) {
+            if (box.w <= 2 * depth + 2 || box.h <= 2 * depth + 2) break;
+            const outer = flat(linePixels(side, 0));
+            if (!outer) break;
+            let same = true;
+            for (let k = 1; k < depth; k++) {
+                const f = flat(linePixels(side, k));
+                if (!f || differs(f, outer)) { same = false; break; }
+            }
+            if (!same) break;
+            const inner = flat(linePixels(side, depth));
+            if (inner && differs(inner, outer)) {
+                cut(side, depth);
+                hairlines.push([side, depth]);
+                break;
+            }
+        }
+    }
+    return { box, margins, hairlines };
+}
+
+// Cached against the decoded image it was measured on.
+function trimOf(entry) {
+    const src = AppRender.sourcePixels(entry);
+    if (!src) return null;
+    if (entry.trimFor !== src) {
+        entry.trim = findTrim(src);
+        entry.trimFor = src;
+    }
+    return entry.trim;
+}
+
+function describeTrim(t) {
+    const parts = [];
+    if (t.margins.length) {
+        parts.push("an empty margin (" + t.margins.map(([s, n]) => `${n} px ${s}`).join(", ") + ")");
+    }
+    for (const [side, n] of t.hairlines) parts.push(`a ${n} px line along the ${side} edge`);
+    return parts.join(" and ");
+}
+
+// Only a hairline earns a badge on the queue: it prints as a visible line.
+// An empty margin is harmless, and trimming it lowers DPI, so it is only
+// mentioned in the editor.
+function trimBadge(entry) {
+    if (entry.editorState.crop) return null;
+    const t = trimOf(entry);
+    if (!t || !t.hairlines.length) return null;
+    const sides = t.hairlines.map(([s]) => s).join(" and ");
+    return `<span class="val-badge yellow">Thin line along the ${sides} edge. Trim edges in the editor</span>`;
+}
+
+// A small cropped thumbnail for the queue, so the row shows what prints.
+function updateThumb(entry) {
+    if (entry.thumbUrl) URL.revokeObjectURL(entry.thumbUrl);
+    entry.thumbUrl = null;
+    const crop = entry.editorState.crop;
+    if (!crop || !entry.originalImage) return;
+    const scale = Math.min(1, 96 / Math.max(crop.w, crop.h));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(crop.w * scale));
+    c.height = Math.max(1, Math.round(crop.h * scale));
+    c.getContext("2d").drawImage(entry.originalImage, crop.x, crop.y, crop.w, crop.h,
+                                 0, 0, c.width, c.height);
+    c.toBlob((blob) => {
+        if (!blob || entry.editorState.crop !== crop) return;
+        entry.thumbUrl = URL.createObjectURL(blob);
+        renderQueue();
+        renderVariableDataSection();
+    }, "image/png");
+}
+
 function resolutionBadge(entry) {
     const res = logoPrintResolution(entry);
     if (!res || res.dpi >= RES_SHARP) return null;
@@ -497,6 +638,8 @@ function getValidationSummary(entry) {
     const res = resolutionBadge(entry);
     if (res) issues.push(res);
     issues.push(...sewingBadges(entry));
+    const hairline = trimBadge(entry);
+    if (hairline) issues.push(hairline);
 
     // Variable data mismatch warning
     if (entry.editorState.textOverlay?.enabled) {
@@ -1050,6 +1193,7 @@ logoSizeSelect.addEventListener("change", () => {
             scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null,
             background: entry.editorState.background || null,
             sewingBuffer: entry.editorState.sewingBuffer || "none",
+            crop: entry.editorState.crop || null,
         };
         entry.variableData = null;
     }
@@ -1297,7 +1441,7 @@ const editorResetBtn = document.getElementById("editor-reset");
 const editorCloseBtn = document.getElementById("editor-close");
 
 let editorWork = { scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null,
-                   background: null, sewingBuffer: "none" };
+                   background: null, sewingBuffer: "none", crop: null };
 let editorLogoImg = null;
 let editorTargetId = null;  // which queue entry is being edited
 let editorDragging = false;
@@ -1366,8 +1510,8 @@ function setupEditorCanvas() {
 function getLogoDrawMetrics() {
     if (!editorLogoImg) return null;
     const dims = getEditorDims();
-    const iw = editorLogoImg.naturalWidth;
-    const ih = editorLogoImg.naturalHeight;
+    const iw = editorWork.crop ? editorWork.crop.w : editorLogoImg.naturalWidth;
+    const ih = editorWork.crop ? editorWork.crop.h : editorLogoImg.naturalHeight;
     const th = (editorWork.rotation || 0) * Math.PI / 180;
     const ac = Math.abs(Math.cos(th));
     const as = Math.abs(Math.sin(th));
@@ -1420,7 +1564,13 @@ function drawEditor() {
         ctx.clip();
         ctx.translate(centerX, centerY);
         ctx.rotate(m.th);
-        ctx.drawImage(editorLogoImg, -m.drawW / 2, -m.drawH / 2, m.drawW, m.drawH);
+        const c = editorWork.crop;
+        if (c) {
+            ctx.drawImage(editorLogoImg, c.x, c.y, c.w, c.h,
+                          -m.drawW / 2, -m.drawH / 2, m.drawW, m.drawH);
+        } else {
+            ctx.drawImage(editorLogoImg, -m.drawW / 2, -m.drawH / 2, m.drawW, m.drawH);
+        }
         ctx.restore();
     }
 
@@ -1472,6 +1622,7 @@ function drawEditor() {
     }
 
     syncSewNote();
+    syncImageNote();
 }
 
 // ---- Open editor for a specific queue entry ----
@@ -1494,7 +1645,9 @@ function openEditorFor(id) {
                 : null,
             background: entry.editorState.background || null,
             sewingBuffer: entry.editorState.sewingBuffer || "none",
+            crop: entry.editorState.crop || null,
         };
+        exitCrop();
         editorSewAll.checked = false;
         editorSewAllWrap.hidden = logoQueue.length < 2;
         syncSewControlsToState();
@@ -1607,8 +1760,264 @@ sewBtns.forEach((btn) => {
     });
 });
 
+// ---- Image row: crop and trim ----
+const editorControls = document.querySelector("#logo-editor-modal .modal-controls");
+const editorImageNote = document.getElementById("editor-image-note");
+const editorCropReadout = document.getElementById("editor-crop-readout");
+const editorCropMsg = document.getElementById("editor-crop-msg");
+
+let cropMode = false;
+let cropDraft = null;      // {x, y, w, h} in source pixels, being edited
+let cropView = null;       // {s, pad}: source pixels to css pixels
+let cropDrag = null;
+
+function editorSource() {
+    const entry = getEntry(editorTargetId);
+    return entry ? AppRender.sourcePixels(entry) : null;
+}
+
+function syncImageNote() {
+    const entry = getEntry(editorTargetId);
+    const src = entry && AppRender.sourcePixels(entry);
+    if (!src) { editorImageNote.innerHTML = ""; return; }
+    const c = editorWork.crop;
+    if (c) {
+        editorImageNote.innerHTML = `Cropped to ${c.w} × ${c.h} px · `
+            + `<button type="button" class="linkbtn" id="editor-crop-undo">Undo crop</button>`;
+        document.getElementById("editor-crop-undo").onclick = () => {
+            editorWork.crop = null;
+            editorWork.offsetX = 0;
+            editorWork.offsetY = 0;
+            drawEditor();
+        };
+        return;
+    }
+    const t = trimOf(entry);
+    let html = `${src.w} × ${src.h} px`;
+    if (t && (t.margins.length || t.hairlines.length)) {
+        const cls = t.hairlines.length ? ' class="warn"' : "";
+        html += `<br><span${cls}>Found ${describeTrim(t)}.</span> `
+            + `<button type="button" class="linkbtn" id="editor-trim-link">Trim edges</button>`;
+    }
+    editorImageNote.innerHTML = html;
+    const link = document.getElementById("editor-trim-link");
+    if (link) link.onclick = () => openCrop(true);
+}
+
+// What a crop box prints at, for the live readout: the same fit maths the
+// renderer uses, at the editor's scale, rotation and sewing buffer.
+function cropMetrics(box) {
+    const entry = getEntry(editorTargetId);
+    const tmpl = SHEET_TEMPLATES[logoSizeSelect.value];
+    const rotation = editorWork.rotation || 0;
+    const rot = Place.rotatedSize(box.w, box.h, -rotation);
+    const fit = Place.fitMetrics(rot.w, rot.h, tmpl, currentBleedPx(), {
+        logoScale: editorWork.scale,
+        bufferPx: AppRender.sewingBufferPx(editorWork.sewingBuffer),
+    });
+    const dpi = Math.round(SHEET_CANVAS.dpi * Math.min(rot.w / fit.scaledW, rot.h / fit.scaledH));
+    const k = fit.scaledW / rot.w;
+    const ink = entry ? inkBoxOf(entry, box) : null;
+    let aw = ink ? (ink.x1 - ink.x0) * k : 0;
+    let ah = ink ? (ink.y1 - ink.y0) * k : 0;
+    if (Math.abs(rotation) % 180 === 90) [aw, ah] = [ah, aw];
+    return { dpi, aw, ah };
+}
+
+function openCrop(useTrim) {
+    const entry = getEntry(editorTargetId);
+    const src = editorSource();
+    if (!entry || !src) return;
+    const t = useTrim ? trimOf(entry) : null;
+    if (t) {
+        cropDraft = { ...t.box };
+        editorCropMsg.innerHTML = (t.margins.length || t.hairlines.length)
+            ? `Trim edges found ${describeTrim(t)}.` : "Nothing to trim.";
+    } else {
+        cropDraft = editorWork.crop ? { ...editorWork.crop } : { x: 0, y: 0, w: src.w, h: src.h };
+        editorCropMsg.innerHTML = "";
+    }
+    cropMode = true;
+    editorControls.classList.add("cropping");
+    editorCanvas.classList.add("cropping");
+    setupCropCanvas(src);
+    drawCropView();
+}
+
+function exitCrop() {
+    if (!cropMode) return;
+    cropMode = false;
+    cropDrag = null;
+    editorControls.classList.remove("cropping");
+    editorCanvas.classList.remove("cropping");
+    setupEditorCanvas();
+}
+
+// The whole supplied image, as large as the editor allows -- and no larger
+// than the space it actually has, so CSS never has to squeeze it.
+function setupCropCanvas(src) {
+    const pad = 12;
+    const body = editorCanvas.parentElement;
+    const cs = getComputedStyle(body);
+    const avail = body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const maxW = Math.max(160, Math.min(EDITOR_DISPLAY_W, avail || EDITOR_DISPLAY_W));
+    const s = Math.min((maxW - 2 * pad) / src.w, (EDITOR_DISPLAY_W * 0.9 - 2 * pad) / src.h);
+    const w = Math.round(src.w * s + 2 * pad);
+    const h = Math.round(src.h * s + 2 * pad);
+    const dpr = window.devicePixelRatio || 1;
+    editorCanvas.style.width = w + "px";
+    editorCanvas.style.height = h + "px";
+    editorCanvas.width = Math.round(w * dpr);
+    editorCanvas.height = Math.round(h * dpr);
+    editorCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cropView = { s, pad, w, h };
+}
+
+function cropHandles(d) {
+    const xs = [d.x, d.x + d.w / 2, d.x + d.w];
+    const ys = [d.y, d.y + d.h / 2, d.y + d.h];
+    const out = [];
+    for (let j = 0; j < 3; j++) {
+        for (let i = 0; i < 3; i++) if (i !== 1 || j !== 1) out.push([xs[i], ys[j], i, j]);
+    }
+    return out;
+}
+
+function drawCropView() {
+    const src = editorSource();
+    if (!src || !cropView) return;
+    const ctx = editorCtx;
+    const { s, pad, w, h } = cropView;
+    const d = cropDraft;
+    ctx.fillStyle = "#151f36";
+    ctx.fillRect(0, 0, w, h);
+    ctx.save();
+    ctx.translate(pad, pad);
+    const iw = src.w * s, ih = src.h * s;
+    const cs = 10;
+    for (let y = 0; y < ih; y += cs) {
+        for (let x = 0; x < iw; x += cs) {
+            ctx.fillStyle = ((x / cs | 0) + (y / cs | 0)) % 2 ? "#cccccc" : "#ffffff";
+            ctx.fillRect(x, y, Math.min(cs, iw - x), Math.min(cs, ih - y));
+        }
+    }
+    ctx.drawImage(editorLogoImg, 0, 0, iw, ih);
+    // Dim what is cut away.
+    ctx.fillStyle = "rgba(10, 15, 30, 0.68)";
+    ctx.beginPath();
+    ctx.rect(0, 0, iw, ih);
+    ctx.rect(d.x * s, d.y * s, d.w * s, d.h * s);
+    ctx.fill("evenodd");
+    ctx.strokeStyle = "#E8508B";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(d.x * s, d.y * s, d.w * s, d.h * s);
+    ctx.fillStyle = "#E8508B";
+    for (const [hx, hy] of cropHandles(d)) ctx.fillRect(hx * s - 5, hy * s - 5, 10, 10);
+    ctx.restore();
+    renderCropReadout(src);
+}
+
+function renderCropReadout(src) {
+    const d = cropDraft;
+    const m = cropMetrics(d);
+    const removed = [["top", d.y], ["bottom", src.h - d.y - d.h],
+                     ["left", d.x], ["right", src.w - d.x - d.w]]
+        .filter(([, n]) => n > 0).map(([side, n]) => `${n} ${side}`).join(", ") || "nothing";
+    const cls = m.dpi >= RES_SHARP ? "" : (m.dpi >= RES_SOFT ? "yellow" : "red");
+    editorCropReadout.innerHTML =
+        `<div><span class="k">Keeping</span><span class="v">${d.w} × ${d.h} px</span></div>`
+        + `<div><span class="k">Removed</span><span class="v">${removed}</span></div>`
+        + `<div><span class="k">Artwork prints</span><span class="v">${inches(m.aw)} × ${inches(m.ah)}</span></div>`
+        + `<div><span class="k">Printed DPI</span><span class="v ${cls}">${m.dpi}</span></div>`;
+}
+
+function cropPoint(e) {
+    const r = editorCanvas.getBoundingClientRect();
+    // The canvas carries max-width: 100%, which can shrink it below the size
+    // it was drawn at -- in width only. Undo that, per axis, before mapping.
+    const kx = r.width / cropView.w;
+    const ky = r.height / cropView.h;
+    return { x: ((e.clientX - r.left) / kx - cropView.pad) / cropView.s,
+             y: ((e.clientY - r.top) / ky - cropView.pad) / cropView.s };
+}
+
+function cropPointerDown(e) {
+    const p = cropPoint(e);
+    const d = cropDraft;
+    const tol = 9 / cropView.s;
+    const h = cropHandles(d).find(([hx, hy]) => Math.abs(hx - p.x) < tol && Math.abs(hy - p.y) < tol);
+    if (h) cropDrag = { kind: "handle", i: h[2], j: h[3], start: p, orig: { ...d } };
+    else if (p.x > d.x && p.x < d.x + d.w && p.y > d.y && p.y < d.y + d.h) {
+        cropDrag = { kind: "move", start: p, orig: { ...d } };
+    }
+}
+
+function cropPointerMove(e) {
+    const src = editorSource();
+    if (!cropDrag || !src) return;
+    const p = cropPoint(e);
+    const o = cropDrag.orig;
+    const dx = p.x - cropDrag.start.x;
+    const dy = p.y - cropDrag.start.y;
+    const min = Math.max(4, Math.round(Math.min(src.w, src.h) * 0.02));
+    let { x, y, w, h } = o;
+    if (cropDrag.kind === "move") {
+        x = Math.max(0, Math.min(src.w - w, o.x + dx));
+        y = Math.max(0, Math.min(src.h - h, o.y + dy));
+    } else {
+        if (cropDrag.i === 0) { x = Math.max(0, Math.min(o.x + o.w - min, o.x + dx)); w = o.x + o.w - x; }
+        if (cropDrag.i === 2) w = Math.max(min, Math.min(src.w - o.x, o.w + dx));
+        if (cropDrag.j === 0) { y = Math.max(0, Math.min(o.y + o.h - min, o.y + dy)); h = o.y + o.h - y; }
+        if (cropDrag.j === 2) h = Math.max(min, Math.min(src.h - o.y, o.h + dy));
+    }
+    cropDraft = { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+    editorCropMsg.innerHTML = "";
+    drawCropView();
+}
+
+document.getElementById("editor-crop-open").addEventListener("click", () => openCrop(false));
+document.getElementById("editor-trim").addEventListener("click", () => openCrop(true));
+document.getElementById("editor-crop-trim").addEventListener("click", () => {
+    const entry = getEntry(editorTargetId);
+    const t = entry && trimOf(entry);
+    if (!t) return;
+    cropDraft = { ...t.box };
+    editorCropMsg.innerHTML = (t.margins.length || t.hairlines.length)
+        ? `Trim edges found ${describeTrim(t)}.` : "Nothing to trim.";
+    drawCropView();
+});
+document.getElementById("editor-crop-all").addEventListener("click", () => {
+    const src = editorSource();
+    if (!src) return;
+    cropDraft = { x: 0, y: 0, w: src.w, h: src.h };
+    editorCropMsg.innerHTML = "";
+    drawCropView();
+});
+document.getElementById("editor-crop-cancel").addEventListener("click", () => {
+    exitCrop();
+    drawEditor();
+});
+document.getElementById("editor-crop-apply").addEventListener("click", () => {
+    const src = editorSource();
+    const d = cropDraft;
+    const whole = !src || (d.x === 0 && d.y === 0 && d.w === src.w && d.h === src.h);
+    const next = whole ? null : { ...d };
+    const prev = editorWork.crop;
+    const changed = JSON.stringify(prev) !== JSON.stringify(next);
+    editorWork.crop = next;
+    // The logo is refitted to its new shape, so the old position no longer
+    // means anything. Scale, rotation, background, buffer and text stay.
+    if (changed) {
+        editorWork.offsetX = 0;
+        editorWork.offsetY = 0;
+    }
+    exitCrop();
+    drawEditor();
+});
+
 // ---- Close helpers ----
 function closeEditor() {
+    exitCrop();
     editorOverlay.classList.remove("visible");
     editorDragging = false;
     editorDraggingText = false;
@@ -1635,7 +2044,9 @@ editorSaveBtn.addEventListener("click", () => {
             textOverlay: editorWork.textOverlay ? { ...editorWork.textOverlay } : null,
             background: editorWork.background || null,
             sewingBuffer: editorWork.sewingBuffer || "none",
+            crop: editorWork.crop || null,
         };
+        updateThumb(entry);
         // One sewing line usually serves the whole job.
         if (editorSewAll.checked) {
             for (const other of logoQueue) {
@@ -1658,8 +2069,10 @@ editorSaveBtn.addEventListener("click", () => {
 editorResetBtn.addEventListener("click", () => {
     // The sewing buffer survives a reset: it is about the sewing, not the
     // placement, and losing it silently is the dangerous direction.
+    // Nor does the crop: it is about the image. Undo crop is the way back.
     editorWork = { scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0, textOverlay: null,
-                   background: null, sewingBuffer: editorWork.sewingBuffer || "none" };
+                   background: null, sewingBuffer: editorWork.sewingBuffer || "none",
+                   crop: editorWork.crop || null };
     editorScaleSlider.value = 100;
     editorScaleLabel.textContent = "100%";
     syncTextControlsToState();
@@ -1742,6 +2155,10 @@ document.querySelectorAll(".align-btn").forEach(btn => {
 // ---- Drag on canvas (logo or text) ----
 editorCanvas.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return;
+    if (cropMode) {
+        cropPointerDown(e);
+        return;
+    }
     const rect = editorCanvas.getBoundingClientRect();
     const mx = (e.clientX - rect.left) / editorDisplayScale;
     const my = (e.clientY - rect.top) / editorDisplayScale;
@@ -1781,6 +2198,10 @@ editorCanvas.addEventListener("mousedown", (e) => {
 });
 
 window.addEventListener("mousemove", (e) => {
+    if (cropMode) {
+        cropPointerMove(e);
+        return;
+    }
     if (editorDraggingText && editorWork.textOverlay) {
         const dx = (e.clientX - editorDragStartX) / editorDisplayScale;
         const dy = (e.clientY - editorDragStartY) / editorDisplayScale;
@@ -1798,6 +2219,10 @@ window.addEventListener("mousemove", (e) => {
 });
 
 window.addEventListener("mouseup", () => {
+    if (cropMode) {
+        cropDrag = null;
+        return;
+    }
     if (editorDraggingText) {
         editorDraggingText = false;
         editorCanvas.classList.remove("grabbing");
@@ -2013,7 +2438,7 @@ function renderVariableDataSection() {
 
         return `<div class="var-data-entry" data-id="${entry.id}">
             <div class="var-data-header">
-                <img class="queue-thumb" src="${entry.objectUrl}" alt="">
+                <img class="queue-thumb" src="${entry.thumbUrl || entry.objectUrl}" alt="">
                 <span class="var-data-label">${escapeHTML(entry.file.name)} ${note}</span>
             </div>
             <label class="var-data-same">

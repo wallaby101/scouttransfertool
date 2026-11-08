@@ -57,15 +57,32 @@ const AppRender = (function () {
      * receive.
      */
     function entryPixels(entry) {
-        if (!entry.pixels && entry.originalImage) {
-            entry.pixels = Place.decodeImage(entry.originalImage);
-        }
+        const crop = entry.editorState && entry.editorState.crop;
+        const key = crop ? `${crop.x},${crop.y},${crop.w},${crop.h}` : '';
+        if (entry.pixels && entry.pixelsKey === key) return entry.pixels;
+        const src = sourcePixels(entry);
+        if (!src) return entry.pixels;
+        // A crop is a straight row copy of the supplied image, so to the
+        // renderer the cropped pixels simply are the logo. See PLAN_crop.md.
+        entry.pixels = crop
+            ? Place.cropRGBA(src.px, src.w, src.h, crop.x, crop.y, crop.w, crop.h)
+            : src;
+        entry.pixelsKey = key;
         return entry.pixels;
+    }
+
+    /** The supplied image, uncropped: what the crop view and Trim edges see. */
+    function sourcePixels(entry) {
+        if (!entry.sourcePixels && entry.originalImage) {
+            entry.sourcePixels = Place.decodeImage(entry.originalImage);
+        }
+        return entry.sourcePixels || null;
     }
 
     /** Drop cached pixels when an entry's image changes. */
     function invalidatePixels(entry) {
         entry.pixels = null;
+        entry.sourcePixels = null;
     }
 
     /**
@@ -351,6 +368,7 @@ const AppRender = (function () {
         sewingOverlayURLs,
         ensureFonts,
         entryPixels,
+        sourcePixels,
         invalidatePixels,
         buildOptions,
         sanitizeName,

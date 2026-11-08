@@ -382,6 +382,25 @@ const Place = (function () {
         return { px: placed, w: pw, h: ph, inexact };
     }
 
+    /**
+     * Cut a rectangle out of an RGBA buffer: a straight row copy, no
+     * resampling, so it is exact -- the same as Pillow's Image.crop(). This
+     * is how a logo crop works: the cropped pixels simply become the logo,
+     * and everything downstream is unchanged. See PLAN_crop.md.
+     */
+    function cropRGBA(px, w, h, x, y, cw, ch) {
+        const x0 = Math.max(0, Math.min(w, x));
+        const y0 = Math.max(0, Math.min(h, y));
+        const outW = Math.max(1, Math.min(w - x0, cw));
+        const outH = Math.max(1, Math.min(h - y0, ch));
+        const out = new Uint8Array(outW * outH * 4);
+        for (let r = 0; r < outH; r++) {
+            const from = ((y0 + r) * w + x0) * 4;
+            out.set(px.subarray(from, from + outW * 4), r * outW * 4);
+        }
+        return { px: out, w: outW, h: outH };
+    }
+
     // ---- canvas interop ---------------------------------------------------
 
     // Decode an HTMLImageElement to raw RGBA. This is the one unavoidable
@@ -425,6 +444,7 @@ const Place = (function () {
         pasteOpaqueMask,
         alphaComposite,
         fillRect,
+        cropRGBA,
         prepareLogo,
         decodeImage,
         toCanvas,
