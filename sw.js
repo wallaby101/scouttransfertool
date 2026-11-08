@@ -8,7 +8,7 @@
 // asks, which is what keeps an update from swapping the app out mid-job. See
 // static/js/pwa.js for the prompt.
 
-const CACHE = 'heatpress-1d4d7191a0a8';
+const CACHE = 'heatpress-4187b62c1db7';
 const ASSETS = [
     'assets/fonts/Arimo-Variable.ttf',
     'assets/fonts/Cousine-Bold.ttf',
@@ -20,8 +20,12 @@ const ASSETS = [
     'assets/fonts/Tinos-Bold.ttf',
     'assets/fonts/Tinos-Regular.ttf',
     'guide-img/app-overview.jpg',
+    'guide-img/editor-sewing.jpg',
+    'guide-img/editor-trim.jpg',
+    'guide-img/half-sheet.jpg',
     'guide-img/layout-jig.jpg',
     'guide-img/layout-packed.jpg',
+    'guide-img/packed-lines.jpg',
     'guide.html',
     'icons/icon-192.png',
     'icons/icon-512.png',
