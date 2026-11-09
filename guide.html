@@ -20,7 +20,7 @@
   img { max-width: 100%; }
   [hidden] { display: none !important; }
 </style>
-<title>Transfer Sheet Tool &mdash; Guide</title>
+<title>Transfer Sheet Tool Guide</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@500&display=swap">
 <style>
 /* Layout: one reading column, full-bleed figure bands, detail folded into
@@ -236,11 +236,11 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     <a class="backlink" href="./">&larr; Back to the tool</a>
     <span class="eyebrow">Scout &middot; DTF transfer sheets</span>
     <h1>Transfer Sheet Tool</h1>
-    <p class="lede">Arranges your logos onto a print-ready sheet for the heatpress,
-      with the registration marks and jig outlines already in the right places.</p>
-    <a class="newpill" href="#new">New: sewing buffer and Trim edges &rarr; What&rsquo;s new</a>
-    <p class="lede" style="font-size:.92rem">Nothing to install. Your logo files never
-      leave your computer, and it keeps working if the internet drops.</p>
+    <p class="lede">Lays your logos out on a print-ready sheet for the heatpress, with
+      the registration marks and jig outlines in place.</p>
+    <a class="newpill" href="#new">New on Nov 8: sewing buffer and Trim edges. See what&rsquo;s new &rarr;</a>
+    <p class="lede" style="font-size:.92rem">It runs in your browser. Your logo files
+      stay on your computer, and the tool still works if the internet drops.</p>
   </div>
 </header>
 
@@ -248,12 +248,12 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
   <div class="wrap stack">
     <span class="eyebrow">Start here</span>
     <h2>What do you want to do?</h2>
-    <p class="lede">Pick a task. Each one jumps to the steps, and shows where the
-      control is: the panel on the left, or the logo editor you open with
-      <strong>&#9998;</strong>.</p>
+    <p class="lede">Each card links to the steps and says where the control is: in the
+      panel on the left, or in the logo editor, which opens from the
+      <strong>&#9998;</strong> button on a logo&rsquo;s row.</p>
     <nav class="tasks" aria-label="Tasks">
       <a class="task" href="#start"><strong>Make a sheet, start to finish</strong>
-        <span class="where">Five steps, about a minute</span></a>
+        <span class="where">Five steps</span></a>
       <a class="task is-new" href="#sewing"><strong>Keep artwork out of the stitching<span class="tag-new">New</span></strong>
         <span class="where">Editor &rarr; Sewing buffer</span></a>
       <a class="task" href="#background"><strong>Put a logo on a coloured label</strong>
@@ -261,7 +261,7 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
       <a class="task is-new" href="#trim"><strong>Remove a stray line or empty space<span class="tag-new">New</span></strong>
         <span class="where">Editor &rarr; Trim edges</span></a>
       <a class="task" href="#sheets"><strong>Print a small order</strong>
-        <span class="where">Automatic: half sheets</span></a>
+        <span class="where">Half sheets are automatic</span></a>
       <a class="task" href="#packed"><strong>Fit more labels on a sheet</strong>
         <span class="where">Layout &rarr; Packed</span></a>
       <a class="task" href="#adjust"><strong>Resize, turn or move a logo</strong>
@@ -280,19 +280,19 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
   <div class="wrap stack">
     <span class="eyebrow">Release notes</span>
     <h2>What&rsquo;s new</h2>
-    <p class="lede">Newest first. Each change works the moment the page reloads; there
-      is nothing to install.</p>
+    <p class="lede">Newest first. A change reaches you the next time the page
+      reloads.</p>
     <div>
       <div class="release">
         <time datetime="2026-11-08">Nov 8, 2026</time>
         <ul>
-          <li><span class="kind new">New</span><strong>Sewing buffer.</strong> Keep
+          <li><span class="kind new">New</span><strong>Sewing buffer.</strong> Keeps
             artwork 3&nbsp;mm, 4&nbsp;mm or &frac14;&Prime; inside the label edge, so
-            nothing prints where the stitching goes. Set it per logo, or on every logo
-            at once. <a class="try" href="#sewing">Try it &rarr;</a></li>
+            the stitching doesn&rsquo;t run through it. Set it on one logo or copy it to
+            all of them. <a class="try" href="#sewing">Try it &rarr;</a></li>
           <li><span class="kind new">New</span><strong>Crop and Trim edges.</strong>
-            Remove a stray one-pixel line or empty space from a logo file without
-            sending it back. The original file is never changed.
+            Cut a stray 1-pixel line or an empty margin off a logo file without sending
+            it back to the designer. Your original file isn&rsquo;t changed.
             <a class="try" href="#trim">Try it &rarr;</a></li>
         </ul>
       </div>
@@ -300,52 +300,53 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
         <time datetime="2026-10-29">Oct 29, 2026</time>
         <ul>
           <li><span class="kind better">Better</span><strong>Packed uses the whole
-            sheet.</strong> Up to 40% more labels per sheet when you cut by hand: 42
-            instead of 36 at 3&nbsp;&times;&nbsp;3&Prime;, 90 instead of 64 at
-            2&nbsp;&times;&nbsp;2&Prime;. <a class="try" href="#packed">See how &rarr;</a></li>
+            sheet.</strong> It now fills the sheet inside a &frac12;&Prime; border. A
+            3&nbsp;&times;&nbsp;3&Prime; sheet holds 42 labels instead of 36, and
+            2&nbsp;&times;&nbsp;2&Prime; holds 90 instead of 64.
+            <a class="try" href="#packed">See how &rarr;</a></li>
           <li><span class="kind better">Better</span><strong>Cut margin replaces
-            Gap.</strong> Set how far each cut line sits from the label, and the tool
-            tells you the size of every piece you cut out. Bleed and the outline
-            checkboxes now work in packed too.</li>
-          <li><span class="kind fix">Fixed</span>The page no longer reloads itself a
-            few seconds into a first visit and loses what you typed. Also fixed: text
-            controls showing on a logo with no text, a cut-off &ldquo;Position
-            bottom&rdquo; button, and a cut margin box that accepted any number.</li>
+            Gap.</strong> You set the distance from each label to its cut line, and the
+            tool shows the size of each piece you&rsquo;ll cut out. Bleed and the outline
+            checkboxes now work in packed as well.</li>
+          <li><span class="kind fix">Fixed</span>On a first visit, the page used to
+            reload itself after a few seconds and lose what you had typed. Also fixed:
+            text controls showing on a logo with no text, a clipped Position bottom
+            button, and a Cut margin box that accepted any number.</li>
         </ul>
       </div>
       <div class="release">
         <time datetime="2026-10-28">Oct 28, 2026</time>
         <ul>
-          <li><span class="kind new">New</span><strong>Half sheets, chosen for
-            you.</strong> A job that only fills the top half of a sheet prints on a
-            22&nbsp;&times;&nbsp;12&Prime; half sheet, using half the film.
+          <li><span class="kind new">New</span><strong>Half sheets.</strong> If a job
+            only fills the top half of its last sheet, that sheet prints as a
+            22&nbsp;&times;&nbsp;12&Prime; half sheet and uses half the film.
             <a class="try" href="#sheets">See how &rarr;</a></li>
           <li><span class="kind new">New</span><strong>Always use full
-            sheets.</strong> For printers that only take whole sheets. The tool
-            remembers it.</li>
+            sheets.</strong> For printers that only take whole sheets. The setting is
+            remembered.</li>
         </ul>
       </div>
       <div class="release">
         <time datetime="2026-10-26">Oct 26, 2026</time>
         <ul>
-          <li><span class="kind new">New</span><strong>Two more sizes:</strong>
+          <li><span class="kind new">New</span><strong>Two more sizes,</strong>
             2.5&nbsp;&times;&nbsp;1.3&Prime; and 2&nbsp;&times;&nbsp;2&Prime;. Use packed
-            for them until their jigs are cut.</li>
-          <li><span class="kind fix">Fixed</span>Label and bleed outlines in the
-            preview are drawn sharply instead of fading at small sizes.</li>
+            for these until their jigs are cut.</li>
+          <li><span class="kind fix">Fixed</span>The label and bleed outlines in the
+            preview no longer fade or lose edges when the sheet is zoomed out.</li>
         </ul>
       </div>
       <div class="release">
         <time datetime="2026-10-25">Oct 25, 2026</time>
         <ul>
           <li><span class="kind new">New</span><strong>Runs in your browser.</strong>
-            Logos never leave your computer, and the tool works offline.</li>
-          <li><span class="kind new">New</span><strong>Printer check.</strong> Pick
+            Logos stay on your computer, and the tool works offline.</li>
+          <li><span class="kind new">New</span><strong>Printer check.</strong> Choose
             your print service and the tool checks the sheet against its limits before
             you download. <a class="try" href="#send">See how &rarr;</a></li>
-          <li><span class="kind new">New</span>A single sheet downloads as a plain PNG;
-            several sheets save straight into a folder. <strong>Same text on every
-            label</strong> for one name on all labels. This guide, from the
+          <li><span class="kind new">New</span>One sheet downloads as a PNG, and several
+            sheets save into a folder you choose. <strong>Same text on every
+            label</strong> puts one name on all of them. This guide opens from the
             <strong>Help</strong> link.</li>
         </ul>
       </div>
@@ -360,25 +361,26 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     <div class="steps">
       <div class="step"><span class="num">1</span><div>
         <strong>Type a project name</strong>
-        <p>Printed small in the sheet margin and used for the file name. The download
-          buttons stay greyed out until you fill it in.</p></div></div>
+        <p>It&rsquo;s printed small in the sheet margin and used in the file name. The
+          download buttons stay grey until you enter one.</p></div></div>
       <div class="step"><span class="num">2</span><div>
         <strong>Pick the logo size</strong>
-        <p>Four sizes. If you are not sure, leave it on
+        <p>There are four. If you aren&rsquo;t sure, leave it on
           3&nbsp;&times;&nbsp;3.</p></div></div>
       <div class="step"><span class="num">3</span><div>
         <strong>Drag your logo in</strong>
-        <p>A PNG with a transparent background gives the best result. JPEGs work, but
-          anything transparent in them comes out white.</p></div></div>
+        <p>Use a PNG with a transparent background if you have one. A JPEG works, but
+          it can&rsquo;t be transparent, so its background prints as a white
+          box.</p></div></div>
       <div class="step"><span class="num">4</span><div>
         <strong>Set how many you need</strong>
-        <p>Use &minus; and &plus;, or click the number and type it. The counter below
-          says what the job becomes &mdash; <em>45 labels &mdash; 1 full sheet + 1 half
-          sheet</em>.</p></div></div>
+        <p>Use &minus; and &plus;, or click the number and type it. The counter
+          underneath shows how many sheets that makes, for example <em>45 labels &mdash;
+          1 full sheet + 1 half sheet</em>.</p></div></div>
       <div class="step"><span class="num">5</span><div>
         <strong>Download</strong>
-        <p>Check the printer panel is green, then click
-          <strong>Download&nbsp;PNG</strong>. That is the file you send.</p></div></div>
+        <p>When the printer panel is green, click <strong>Download&nbsp;PNG</strong> and
+          send that file.</p></div></div>
     </div>
     <figure>
       <div class="shot">
@@ -389,9 +391,8 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
         <span class="pin" style="left:12.3%;top:51%">4</span>
         <span class="pin" style="left:6%;   top:95.5%">5</span>
       </div>
-      <figcaption>The numbers match the steps. Controls run down the left; the sheet
-        as it will print is on the right, and updates every time you change
-        something.</figcaption>
+      <figcaption>The numbers match the steps. The sheet on the right is what will
+        print, and it redraws whenever you change something.</figcaption>
     </figure>
   </div>
 </section>
@@ -401,40 +402,41 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     <span class="eyebrow">How to &middot; New</span>
     <h2>Keep artwork out of the stitching</h2>
     <span class="where-pill">Where: <b>&#9998; editor &rarr; Sewing buffer</b></span>
-    <p class="why">The stitching around a label takes a band just inside its edge. A
-      sewing buffer keeps every bit of artwork out of that band.</p>
+    <p class="why">When a label is sewn on, the stitching runs through a band just
+      inside its edge. A sewing buffer keeps the artwork out of that band.</p>
     <ol class="do">
       <li><div>Click <strong>&#9998;</strong> on the logo&rsquo;s row to open the editor.</div></li>
       <li><div>Under <strong>Sewing buffer</strong>, pick <strong>3&nbsp;mm</strong>,
-        <strong>4&nbsp;mm</strong> or <strong>&frac14;&Prime;</strong>. The logo
-        shrinks to fit inside a magenta line that far in from the edge.</div></li>
-      <li><div>With more than one logo, tick <strong>Use on every logo</strong> to set
-        the whole job at once.</div></li>
-      <li><div>Click <strong>Save</strong>. Every label on the sheet now shows its
-        magenta line.</div></li>
+        <strong>4&nbsp;mm</strong> or <strong>&frac14;&Prime;</strong>. A magenta line
+        appears that far in from the edge, and the logo shrinks to fit inside
+        it.</div></li>
+      <li><div>If the job has more than one logo, tick <strong>Use on every
+        logo</strong> to give them all the same buffer.</div></li>
+      <li><div>Click <strong>Save</strong>. Each label in the sheet preview now shows
+        its magenta line.</div></li>
     </ol>
     <figure>
       <div class="shot"><img src="guide-img/editor-sewing.jpg"
         alt="The logo editor with a navy background and a quarter-inch sewing buffer. Labelled: the green label edge, the magenta sewing line the artwork stays inside, the navy background running to the edge, and the Color, quarter-inch and readout controls"></div>
-      <figcaption>A &frac14;&Prime; buffer on a 3&nbsp;&times;&nbsp;3&Prime; label. The
-        numbers mark the controls; the sewing line here keeps 69% of the label for
-        artwork.</figcaption>
+      <figcaption>A &frac14;&Prime; buffer on a 3&nbsp;&times;&nbsp;3&Prime; label leaves
+        69% of the label for artwork. The numbered pins mark the controls.</figcaption>
     </figure>
     <details>
-      <summary>Good to know</summary>
+      <summary>More about the sewing buffer</summary>
       <div class="stack">
         <ul>
-          <li>The magenta line is a guide and never prints. Untick <strong>Show sewing
-            outline</strong> to hide it.</li>
-          <li>Scale a logo up or drag it over the line and the overhang is cut off, not
-            printed. A yellow note says by how much.</li>
-          <li>A buffer costs small labels the most. At &frac14;&Prime;, a
-            2.5&nbsp;&times;&nbsp;1.3&Prime; label keeps under half its area for artwork.</li>
-          <li>The default is <strong>None</strong>, so older jobs print exactly as
-            before.</li>
-          <li>Not the same as <strong>Cut margin</strong>: that is film
-            <em>outside</em> the label for the scissors; this is the band
-            <em>inside</em> it for the needle.</li>
+          <li>The magenta line is only on screen and is never printed. Untick
+            <strong>Show sewing outline</strong> to hide it.</li>
+          <li>If you scale the logo up or drag it across the line, the part outside is
+            cut off. A yellow note says how far it crosses.</li>
+          <li>A buffer takes a bigger share of a small label. With a &frac14;&Prime; buffer, a
+            2.5&nbsp;&times;&nbsp;1.3&Prime; label has less than half its area left for
+            artwork.</li>
+          <li>New logos start at <strong>None</strong>, so jobs made before the buffer
+            existed print the same as they always did.</li>
+          <li><strong>Cut margin</strong>, in the packed layout, is a different setting.
+            It is film left around the outside of the label for cutting, whereas the
+            sewing buffer is a band inside the label.</li>
         </ul>
       </div>
     </details>
@@ -450,14 +452,15 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
       <li><div>Open the logo&rsquo;s editor with <strong>&#9998;</strong>.</div></li>
       <li><div>Next to <strong>Background</strong>, click <strong>Color</strong>.</div></li>
       <li><div>Click the colour swatch beside it and pick the label colour.</div></li>
-      <li><div>Click <strong>Save</strong>. The colour fills the whole label behind the
+      <li><div>Click <strong>Save</strong>. The colour fills the label behind the
         logo.</div></li>
     </ol>
     <div class="note">
-      <h3>The logo itself is never recoloured</h3>
-      <p>For a white logo on a navy label, ask the customer for a white logo file; the
-        tool supplies the navy. With a sewing buffer set, the colour still runs to the
-        label edge while the artwork stays inside the line.</p>
+      <h3>The logo keeps its own colours</h3>
+      <p>The tool can&rsquo;t recolour a logo. For a white logo on a navy label, get a
+        white version of the logo from the customer and set the background to navy. If
+        a sewing buffer is set, the colour still runs to the label edge and only the
+        artwork moves in.</p>
     </div>
   </div>
 </section>
@@ -467,28 +470,29 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     <span class="eyebrow">How to &middot; New</span>
     <h2>Remove a stray line or empty space</h2>
     <span class="where-pill">Where: <b>&#9998; editor &rarr; Image &rarr; Trim edges</b></span>
-    <p class="why">Exported logos sometimes carry a one-pixel line along an edge, too
-      thin to see on screen but printed on every label. A yellow note under the logo
-      warns you: <em>Thin line along the bottom edge</em>.</p>
+    <p class="why">Logo exports sometimes have a 1-pixel line along one edge. It&rsquo;s
+      too thin to notice on screen, but it prints on every label. When the tool finds
+      one, it puts a yellow note under the logo, such as <em>Thin line along the bottom
+      edge</em>.</p>
     <ol class="do">
       <li><div>Open the logo&rsquo;s editor with <strong>&#9998;</strong>.</div></li>
-      <li><div>Click <strong>Trim edges</strong>. The tool finds the line or empty
-        margin and draws a box around what to keep. Or click <strong>Crop&hellip;</strong>
-        and drag the box yourself.</div></li>
-      <li><div>Check the readout: the size the artwork prints and its DPI. Amber means
-        under 270 DPI, red under 200.</div></li>
+      <li><div>Click <strong>Trim edges</strong>. The tool finds the line or the empty
+        margin and puts a box around the part to keep. To place the box yourself, click
+        <strong>Crop&hellip;</strong> and drag it.</div></li>
+      <li><div>Check the readout under the picture. It gives the printed size and the
+        DPI. Amber means under 270 DPI, and red means under 200.</div></li>
       <li><div>Click <strong>Apply crop</strong>, then <strong>Save</strong>.</div></li>
     </ol>
     <figure>
       <div class="shot"><img src="guide-img/editor-trim.jpg"
         alt="The crop view after Trim edges. Labelled: the one-pixel line along the bottom that it cuts off, the crop handles, the print size and DPI readout, the Trim edges and Whole image buttons, and Apply crop"></div>
       <figcaption>Trim edges found a 1-pixel line along the bottom and set the box to
-        remove it. The readout (1) shows it still prints at
+        leave it out. The readout (1) shows the logo still prints at
         3.25&nbsp;&times;&nbsp;1.75&Prime;, 323 DPI.</figcaption>
     </figure>
-    <p class="why">The file is never changed, so <strong>Undo crop</strong> always puts
-      the whole image back. Trimming empty space makes the logo print bigger, which
-      lowers its DPI; the readout shows by how much.</p>
+    <p class="why">Your file isn&rsquo;t changed, so <strong>Undo crop</strong> always
+      brings the whole image back. Trimming empty space makes the logo print larger,
+      which lowers its DPI. The readout shows the new figure.</p>
   </div>
 </section>
 
@@ -497,23 +501,22 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     <span class="eyebrow">How to</span>
     <h2>Print a small order</h2>
     <span class="where-pill">Where: <b>Sheet Size</b>, and the counter under your logos</span>
-    <p class="why">You never pick a half sheet. Choose the full sheet you buy, set your
-      quantities, and the tool uses a half sheet whenever the last sheet would be half
-      empty.</p>
+    <p class="why">You only choose the full sheet size. If the last sheet of a job would
+      be half full or less, the tool prints it as a half sheet.</p>
     <ol class="do">
       <li><div>Under <strong>Sheet Size</strong>, pick the full sheet you buy:
         22&nbsp;&times;&nbsp;24&Prime; or 22&nbsp;&times;&nbsp;22&Prime;.</div></li>
       <li><div>Set each logo&rsquo;s quantity.</div></li>
-      <li><div>Read the counter under the logos: <em>45 labels &mdash; 1 full sheet + 1
-        half sheet</em>.</div></li>
+      <li><div>The counter under the logos shows the result, for example <em>45 labels
+        &mdash; 1 full sheet + 1 half sheet</em>.</div></li>
       <li><div>If your printer only takes full sheets, tick <strong>Always use full
-        sheets</strong>. The tool remembers it.</div></li>
+        sheets</strong>. The tool remembers this.</div></li>
     </ol>
     <figure>
       <div class="shot"><img src="guide-img/half-sheet.jpg"
         alt="45 labels shown as one full 22 by 24 inch sheet of 30 labels and one 22 by 12 inch half sheet of 15, with the counter under the logo labelled"></div>
-      <figcaption>45 labels at 3&nbsp;&times;&nbsp;3&Prime;: a full sheet and a half sheet.
-        The counter (1) says so before you download.</figcaption>
+      <figcaption>45 labels at 3&nbsp;&times;&nbsp;3&Prime; make a full sheet and a half
+        sheet. The counter (1) shows this before you download.</figcaption>
     </figure>
     <div class="tablewrap"><table>
       <thead><tr><th>Labels at 3 &times; 3&Prime;, jig slots</th><th>What you get</th><th>Film</th></tr></thead>
@@ -528,23 +531,21 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     <details>
       <summary>How the tool decides</summary>
       <div class="stack">
-        <p>A job fills in jig halves. Every two of them is one full sheet, and a
-          leftover one is a <strong>half sheet</strong> &mdash; the top half of the film,
-          12&Prime; tall instead of 24. In the jig layout it is one jig half, pressed in
-          the jig exactly as a full sheet is; in the packed layout it is packed on its
-          own. It is always the last sheet.</p>
-        <p>Sixteen labels become a whole sheet rather than two halves, because two
-          halves are the same film and twice the pressing. Forty-five become a full
-          sheet and a half rather than two full sheets, because the second full
-          sheet would be half empty.</p>
+        <p>Labels fill one jig half at a time, and two halves make a full sheet. If one
+          half is left over, it becomes a <strong>half sheet</strong>: the top half of
+          the film, 12&Prime; tall. It is always the last sheet of
+          the job. In the jig layout you press it in the jig like a full sheet. In the
+          packed layout it is packed separately.</p>
+        <p>Two half sheets use the same film as one full sheet and take twice the
+          pressing, so 16 labels go on one full sheet. At 45, a second full sheet would
+          be half empty, so the last 15 go on a half sheet.</p>
         <ul>
-          <li>Half sheets are 22&nbsp;&times;&nbsp;12&Prime; under a
-            22&nbsp;&times;&nbsp;24&Prime; sheet and 22&nbsp;&times;&nbsp;11&Prime;
-            under a 22&nbsp;&times;&nbsp;22&Prime; one.</li>
-          <li>A PDF of a mixed job has pages of both sizes, each at 300 DPI.</li>
+          <li>A half sheet is 22&nbsp;&times;&nbsp;12&Prime; when you buy
+            22&nbsp;&times;&nbsp;24&Prime; sheets, and 22&nbsp;&times;&nbsp;11&Prime;
+            when you buy 22&nbsp;&times;&nbsp;22&Prime;.</li>
+          <li>The PDF of a mixed job has pages of both sizes, all at 300 DPI.</li>
           <li>With <strong>Always use full sheets</strong> ticked, 45 labels at
-            3&nbsp;&times;&nbsp;3&Prime; become two full sheets instead of a full and a
-            half.</li>
+            3&nbsp;&times;&nbsp;3&Prime; make two full sheets.</li>
         </ul>
       </div>
     </details>
@@ -555,39 +556,40 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
   <div class="wrap stack">
     <span class="eyebrow">How to</span>
     <h2>Fit more labels on a sheet</h2>
-    <span class="where-pill">Where: <b>Layout &rarr; Packed &mdash; cut by hand</b></span>
-    <p class="why">If you cut the transfers out by hand rather than pressing them in
-      the jig, packed fills the whole sheet with a &frac12;&Prime; border, and fits up
-      to 40% more.</p>
+    <span class="where-pill">Where: <b>Layout &rarr; Packed (cut by hand)</b></span>
+    <p class="why">If you cut the transfers out by hand instead of pressing them through
+      the jig, the packed layout uses the whole sheet inside a &frac12;&Prime; border
+      and fits more labels.</p>
     <div class="two">
       <figure>
         <div class="shot"><img src="guide-img/layout-jig.jpg"
              alt="Jig slots layout: logos in the jig's fixed openings with red registration marks"></div>
-        <figcaption><strong>Jig slots</strong> &mdash; the default. Lines up with the
-          physical jig.</figcaption>
+        <figcaption><strong>Jig slots</strong>, the default. Logos sit in the jig&rsquo;s
+          openings.</figcaption>
       </figure>
       <figure>
         <div class="shot"><img src="guide-img/layout-packed.jpg"
              alt="Packed layout: logos turned sideways and packed tightly with dotted cut lines"></div>
-        <figcaption><strong>Packed</strong> &mdash; more per sheet, cut apart by hand
-          along the dotted lines.</figcaption>
+        <figcaption><strong>Packed</strong>. More labels per sheet, cut apart along the
+          dotted lines.</figcaption>
       </figure>
     </div>
     <ol class="do">
       <li><div>Set <strong>Layout</strong> to <strong>Packed &mdash; cut by
         hand</strong>.</div></li>
-      <li><div>Type a <strong>Cut margin</strong> in inches, 0 to 1: how far each
-        dotted cut line sits from the label edge. 0.125 is the default.</div></li>
-      <li><div>Read the note underneath, for example <em>36 per sheet &mdash; 6 x 6.
-        Each piece cut out is 3.5 x 3.5&Prime;</em>. It updates as you type.</div></li>
-      <li><div>Keep the margin wider than the bleed. If it is not, the tool warns
-        you.</div></li>
+      <li><div>Type a <strong>Cut margin</strong> in inches, from 0 to 1. It is the
+        distance from the label edge to the dotted cut line. The default is
+        0.125.</div></li>
+      <li><div>The note underneath updates as you type, for example <em>36 per sheet
+        &mdash; 6 x 6. Each piece cut out is 3.5 x 3.5&Prime;</em>.</div></li>
+      <li><div>Make the margin larger than the bleed. The tool warns you if it
+        isn&rsquo;t.</div></li>
     </ol>
     <figure>
       <div class="shot"><img src="guide-img/packed-lines.jpg"
         alt="Close-up of a packed sheet. Labelled: the blue printed area edge, the label edge, the magenta sewing line, the red dotted cut line, and the cut margin between label and cut line"></div>
-      <figcaption>Every line on a packed sheet. You cut along the dotted red line; the
-        label and sewing outlines are guides and never print.</figcaption>
+      <figcaption>The lines on a packed sheet. Cut along the red dotted line. The label
+        and sewing outlines are on screen only.</figcaption>
     </figure>
     <div class="tablewrap"><table>
       <thead><tr><th>Logo size</th><th>Jig slots</th><th>Packed</th><th>Packed, &frac14;&Prime; margin</th></tr></thead>
@@ -604,25 +606,24 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     </table></div>
     <div class="note warn">
       <h3>2.5 &times; 1.3&Prime; and 2 &times; 2&Prime; have no jig yet</h3>
-      <p><strong>Packed</strong> works today, because packing needs no jig.
-        <strong>Jig slots</strong> will not line up until a jig has been cut to match
-        them, so use packed for those sizes for now.</p>
+      <p>Packed works for these sizes now, since it doesn&rsquo;t use a jig. Jig slots
+        won&rsquo;t line up until a jig is cut to match, so use packed for them.</p>
     </div>
     <details>
-      <summary>What else changes in packed mode</summary>
+      <summary>Other differences in packed</summary>
       <div class="stack">
         <ul>
-          <li><strong>Every piece you cut out</strong> is the label plus the cut margin
-            all round. Neighbours share the cut line between them.</li>
-          <li><strong>Bleed and the outline checkboxes work as they do for the
-            jig.</strong> The green outline is the label; the dotted red line is where
-            you cut. If a logo does not reach the green line on every side, that is the
-            shape of the logo file, not the spacing.</li>
-          <li><strong>No blue jig boxes and no cyan line down the middle.</strong> One
-            blue outline shows the printed area.</li>
-          <li>A half sheet is packed on its own, so it is not simply half of a full one
-            &mdash; and it may lay the logos the other way round. That makes no
-            difference once they are cut out.</li>
+          <li>Each piece you cut out is the label plus the cut margin on every side.
+            Neighbouring labels share a cut line.</li>
+          <li>Bleed and the outline checkboxes behave as they do in the jig layout. The
+            green outline is the label edge and the red dotted line is where you cut. If
+            a logo stops short of the green line on one side, the logo file is a
+            different shape from the label.</li>
+          <li>There are no blue jig boxes and no cyan line across the middle. One blue
+            outline marks the printed area.</li>
+          <li>A half sheet is packed separately, so it may not hold exactly half as many
+            labels, and its logos may be turned the other way. The finished labels are the same
+            either way, because each piece is cut out before it&rsquo;s pressed.</li>
         </ul>
       </div>
     </details>
@@ -634,18 +635,16 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     <span class="eyebrow">How to</span>
     <h2>Resize, turn or move a logo</h2>
     <span class="where-pill">Where: <b>&#9998; editor</b></span>
-    <p class="why">Everything in the editor applies to that one logo, on every copy of
-      it.</p>
+    <p class="why">Changes in the editor apply to that logo and every copy of it.</p>
     <ul>
-      <li><strong>Make it bigger or smaller:</strong> drag <strong>Scale</strong>. 100%
-        fills as much of the label as it can without cropping; past 100% crops the
-        edges.</li>
-      <li><strong>Turn it:</strong> drag <strong>Rotate</strong>, or use the quarter-turn
-        buttons. The logo is re-fitted after turning, so nothing is cut off.</li>
-      <li><strong>Move it:</strong> the six arrows push it to an edge and the dot
-        re-centres it, or drag it on the picture.</li>
-      <li><strong>Start over:</strong> <strong>Reset</strong> puts scale, turn and
-        position back. The background, buffer and crop stay.</li>
+      <li>Drag <strong>Scale</strong> to resize the logo. At 100% it fills as much of the
+        label as it can without being cropped. Above 100%, the edges are cropped.</li>
+      <li>Drag <strong>Rotate</strong>, or use the quarter-turn buttons, to turn it. The
+        logo is refitted after turning so its corners stay inside the label.</li>
+      <li>Use the six arrow buttons to push the logo to an edge, or the dot to centre
+        it. You can also drag it on the picture.</li>
+      <li><strong>Reset</strong> puts the scale, rotation and position back to the
+        start. It leaves the background, sewing buffer and crop as they are.</li>
     </ul>
   </div>
 </section>
@@ -657,19 +656,20 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     <span class="where-pill">Where: <b>&#9998; editor &rarr; + Add Text</b>, then <b>Variable Data</b></span>
     <ol class="do">
       <li><div>In the editor, click <strong>+ Add Text</strong> and set the font, size,
-        colour and position. <code>{{name}}</code> in the preview is a placeholder and
-        never prints.</div></li>
+        colour and position. The <code>{{name}}</code> in the preview is a placeholder
+        and isn&rsquo;t printed.</div></li>
       <li><div>Click <strong>Save</strong>.</div></li>
       <li><div>In the <strong>Variable Data</strong> panel on the left, type one value
-        per label, separated by commas, and click <strong>Apply</strong>.</div></li>
-      <li><div>Or tick <strong>Same text on every label</strong> and type it once.
-        Commas stay intact, so <em>Smith, Jr.</em> survives as one name.</div></li>
+        per label with commas between them, and click <strong>Apply</strong>.</div></li>
+      <li><div>If every label should say the same thing, tick <strong>Same text on every
+        label</strong> and type it once. Commas are kept, so <em>Smith, Jr.</em> stays
+        one name.</div></li>
     </ol>
     <div class="note warn">
       <h3>Text will not print without values</h3>
-      <p>Styling the text is not enough. If the Variable Data box is empty, no text is
-        printed at all and nothing warns you on the sheet itself. Check the counter
-        reads green before you download.</p>
+      <p>If the Variable Data box is empty, the labels print with only the logo, and
+        the sheet gives no warning. Make sure the counter is green before you
+        download.</p>
     </div>
   </div>
 </section>
@@ -679,30 +679,30 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     <span class="eyebrow">How to</span>
     <h2>Send the right file to the printer</h2>
     <ol class="do">
-      <li><div>Pick your printer under <strong>Print Service</strong>. The tool checks
-        the sheet against that company&rsquo;s published limits.</div></li>
-      <li><div>Wait for the chips to go green. A red one blocks the download and offers
-        a one-click fix.</div></li>
-      <li><div>Click the outlined download button &mdash; for Transfer Express,
+      <li><div>Choose your printer under <strong>Print Service</strong>. The tool checks
+        the sheet against the limits that company publishes.</div></li>
+      <li><div>Wait for the chips to turn green. A red chip blocks the download and shows
+        a button that fixes the problem.</div></li>
+      <li><div>Click the download button with the outline. For Transfer Express that is
         <strong>Download&nbsp;PNG</strong>.</div></li>
     </ol>
     <div class="two">
       <div class="note go" style="color:var(--ink)">
-        <h3>Good to send</h3>
+        <h3>Ready to send</h3>
         <div class="chips">
           <span class="chip ok">&#10003; Sheet 22 x 22&Prime;</span>
           <span class="chip ok">&#10003; Logo 600 DPI</span>
         </div>
-        <p>Both green. Nothing between you and the download.</p>
+        <p>Both chips are green, so you can download.</p>
       </div>
       <div class="note stop" style="color:var(--ink)">
-        <h3>Stop</h3>
+        <h3>Can&rsquo;t send yet</h3>
         <div class="chips">
           <span class="chip bad">&times; Sheet 22 x 24&Prime;</span>
           <span class="chip ok">&#10003; Logo 600 DPI</span>
         </div>
-        <p>The download greys out and a red box explains why, with a button that
-          fixes it.</p>
+        <p>The download button is greyed out. A red box explains the problem and has a
+          button to fix it.</p>
       </div>
     </div>
   </div>
@@ -710,11 +710,12 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
 
 <section class="band">
   <div class="wrap stack">
-    <span class="eyebrow">The expensive mistake</span>
-    <h2>The sheet size trap</h2>
-    <p class="lede">This one cost a real job. Transfer Express accept an uploaded file
-      up to <strong>22&nbsp;&times;&nbsp;22&Prime;</strong>. Send a 22&nbsp;&times;&nbsp;24&Prime;
-      sheet and they do not refuse it &mdash; they shrink the whole thing to fit.</p>
+    <span class="eyebrow">Sheet size</span>
+    <h2>Transfer Express shrink a 22 &times; 24&Prime; sheet</h2>
+    <p class="lede">Transfer Express accept
+      uploads up to <strong>22&nbsp;&times;&nbsp;22&Prime;</strong>. If you send a
+      22&nbsp;&times;&nbsp;24&Prime; sheet, they shrink it to fit instead of rejecting
+      it.</p>
 
     <svg viewBox="0 0 640 230" role="img" aria-label="A 22 by 24 inch sheet is scaled to 91.7 percent, printing at 20.17 by 22 inches, so a 3 inch label prints at 2.75 inches">
       <rect x="40" y="26" width="128" height="140" rx="4" fill="none"
@@ -755,22 +756,24 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     </svg>
 
     <div class="note stop">
-      <h3>Every label comes out undersized</h3>
-      <p>A 3&Prime; label prints at 2.75&Prime;, and the jig does not line up. Nothing on
-        their page says they changed your file &mdash; it just shows the new size.</p>
+      <h3>Every label prints too small</h3>
+      <p>A 3&Prime; label comes out at 2.75&Prime; and no longer lines up with the jig.
+        Their site shows the new size, but it doesn&rsquo;t say the file was
+        changed. This has already happened on one job.</p>
     </div>
     <div class="note go">
-      <h3>The tool catches it</h3>
-      <p>The download greys out and a <strong>Switch to 22&nbsp;&times;&nbsp;22&Prime;</strong>
-        button changes the setting for you.</p>
+      <h3>The tool blocks the download</h3>
+      <p>It greys out the download and shows a <strong>Switch to
+        22&nbsp;&times;&nbsp;22&Prime;</strong> button that changes the setting.</p>
     </div>
 
     <details>
-      <summary>Why their bigger sheet does not help</summary>
+      <summary>Why their larger sheet doesn&rsquo;t help</summary>
       <div class="stack">
-        <p>They do sell a 24&nbsp;&times;&nbsp;22&Prime; gang sheet, but only if you build
-          it inside their own online designer. A file you upload is always treated as a
-          single image, and their maximum single image is 22&nbsp;&times;&nbsp;22&Prime;.</p>
+        <p>Transfer Express do sell a 24&nbsp;&times;&nbsp;22&Prime; gang sheet, but only
+          for sheets built in their own online designer. An uploaded file counts as a
+          single image, and the largest single image they take is
+          22&nbsp;&times;&nbsp;22&Prime;.</p>
       </div>
     </details>
   </div>
@@ -778,39 +781,39 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
 
 <section class="band">
   <div class="wrap stack">
-    <span class="eyebrow">Send the right file</span>
-    <h2>PNG, not PDF</h2>
+    <span class="eyebrow">File type</span>
+    <h2>Send Transfer Express the PNG</h2>
     <div class="note warn">
-      <h3>Transfer Express cannot read resolution inside a PDF</h3>
-      <p>The identical sheet uploads as 300&nbsp;DPI when you send the PNG, and draws a
-        &ldquo;less than 150 dots per inch&rdquo; warning as a PDF. Both files are the
-        same 300&nbsp;DPI sheet.</p>
+      <h3>Transfer Express can&rsquo;t read the resolution of a PDF</h3>
+      <p>The PNG uploads as 300&nbsp;DPI. The PDF of the same sheet is also
+        300&nbsp;DPI, but their uploader can&rsquo;t read its resolution and warns that
+        it is under 150 dots per inch.</p>
     </div>
     <div class="btnrow">
       <span class="btn outlined">Download PNG</span>
       <span class="btn quiet">Download PDF</span>
     </div>
     <p class="lede" style="font-size:.95rem">The app outlines the button to use in
-      green. The PDF is still the easier file to look over on screen before committing
-      film &mdash; just do not upload it.</p>
+      green. The PDF is easier to look over on screen before you print, but don&rsquo;t
+      upload it to Transfer Express.</p>
 
     <details>
-      <summary>What you get, and what it is named</summary>
+      <summary>What you get, and what it&rsquo;s called</summary>
       <div class="stack">
         <div class="tablewrap"><table>
-          <thead><tr><th>Job</th><th>Button</th><th>What lands</th></tr></thead>
+          <thead><tr><th>Job</th><th>Button</th><th>What you get</th></tr></thead>
           <tbody>
             <tr><td>One sheet</td><td>Download PNG</td>
                 <td class="mono">Northgate Spring Run_sheet1.png</td></tr>
             <tr><td>Several sheets</td><td>Save PNGs to Folder</td>
-                <td>You pick a folder; each sheet is written into it as its own PNG</td></tr>
-            <tr><td>Several, older browser</td><td>Download PNGs (ZIP)</td>
+                <td>You pick a folder, and each sheet is saved in it as its own PNG</td></tr>
+            <tr><td>Several sheets, older browser</td><td>Download PNGs (ZIP)</td>
                 <td class="mono">Northgate Spring Run_sheets.zip</td></tr>
           </tbody>
         </table></div>
-        <p>Every file is 300&nbsp;DPI with a transparent background, which is what DTF
-          film needs. Transfer Express take one file per upload slot, so a multi-sheet
-          job means uploading each PNG separately either way.</p>
+        <p>Every file is 300&nbsp;DPI with a transparent background, which DTF film
+          needs. Transfer Express take one file per upload slot, so upload each PNG of a
+          multi-sheet job separately.</p>
       </div>
     </details>
   </div>
@@ -818,54 +821,56 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
 
 <section class="band" id="fixes">
   <div class="wrap stack">
-    <span class="eyebrow">When it goes wrong</span>
+    <span class="eyebrow">Troubleshooting</span>
     <h2>Quick fixes</h2>
     <div class="tablewrap"><table>
       <thead><tr><th>What you see</th><th>What to do</th></tr></thead>
       <tbody>
         <tr><td>Download buttons greyed out</td>
-            <td>Usually no project name. Fill it in at the top left.</td></tr>
+            <td>There&rsquo;s probably no project name. Type one at the top left.</td></tr>
         <tr><td><span class="chip bad">&times; Sheet 22 x 24&Prime;</span></td>
             <td>Click <strong>Switch to 22&nbsp;&times;&nbsp;22&Prime;</strong> in the red box.</td></tr>
         <tr><td>Orange <strong>200 DPI &mdash; slightly soft</strong> under a logo</td>
-            <td>Ask for the logo again at the pixel size shown, or turn the scale down.</td></tr>
+            <td>Ask for the logo at the pixel size shown, or lower the scale.</td></tr>
         <tr><td><strong>Need 6 values, have 0</strong> in red</td>
             <td>Add one value per label in Variable Data and click Apply.
               <a class="try" href="#text">Steps &rarr;</a></td></tr>
         <tr><td>A white block behind the logo</td>
-            <td>The file is a JPEG, which cannot be transparent. Re-export as PNG.</td></tr>
+            <td>The file is a JPEG, which can&rsquo;t be transparent. Ask for a PNG.</td></tr>
         <tr><td>Text on the labels is invisible</td>
-            <td>The text colour matches what is behind it. Pick a darker colour.</td></tr>
+            <td>The text is the same colour as what&rsquo;s behind it. Choose a different
+              colour.</td></tr>
         <tr><td>Logo cut off at the edges</td>
-            <td>Scale is above 100%. Open the editor and click <strong>Reset</strong>.</td></tr>
+            <td>Scale is over 100%. Open the editor and click <strong>Reset</strong>.</td></tr>
         <tr><td>Yellow <strong>Crosses the sewing line by 0.16&Prime;</strong> under a logo</td>
-            <td>Scale is above what fits inside the line, or the logo was dragged off
-              centre. Lower the scale or re-centre it; anything past the line is cut off.</td></tr>
-        <tr><td>A thin light or dark line along one edge of every logo, or
-              <strong>Thin line along the bottom edge</strong> in yellow</td>
+            <td>The logo is scaled up too far or dragged off centre. Lower the scale or
+              centre it again. Anything past the line is cut off.</td></tr>
+        <tr><td>A thin light or dark line along one edge of every logo, or a yellow
+              <strong>Thin line along the bottom edge</strong></td>
             <td>Open the editor, click <strong>Trim edges</strong>, then
               <strong>Apply crop</strong>. <a class="try" href="#trim">Steps &rarr;</a></td></tr>
         <tr><td>With a sewing buffer, the logo&rsquo;s own coloured square shrinks too</td>
-            <td>The square is part of the file. Set <strong>Background</strong> to the same
-              colour so the label stays solid to its edge.
+            <td>The square is part of the logo file. Set <strong>Background</strong> to the
+              same colour so the label is solid to the edge.
               <a class="try" href="#background">Steps &rarr;</a></td></tr>
-        <tr><td>Logo does not reach the green outline on every side</td>
-            <td>The logo file is a different shape from the label, and the tool will
-              not stretch it. Ask for it at the label&rsquo;s shape &mdash; see the sizes
-              below.</td></tr>
+        <tr><td>Logo doesn&rsquo;t reach the green outline on every side</td>
+            <td>The logo file is a different shape from the label, and the tool
+              won&rsquo;t stretch it. Ask for a file in the label&rsquo;s proportions
+              (sizes below).</td></tr>
         <tr><td>Red note: <em>the bleed reaches past a cut margin</em></td>
-            <td>The print would run into the next label. Raise <strong>Cut margin</strong>
-              above the bleed, or lower the bleed.</td></tr>
-        <tr><td>Your printer will not take a half sheet</td>
+            <td>The print would overlap the next label. Make <strong>Cut margin</strong>
+              larger than the bleed, or reduce the bleed.</td></tr>
+        <tr><td>Your printer won&rsquo;t take a half sheet</td>
             <td>Tick <strong>Always use full sheets</strong> under Sheet Size.</td></tr>
         <tr><td>Anything else odd</td>
-            <td>Close the window and open it again. Nothing about the job is kept
-              between sessions &mdash; only your printer and full-sheet settings.</td></tr>
+            <td>Close the window and open it again. The job isn&rsquo;t saved between
+              sessions. Only your printer choice and the full-sheet setting are
+              kept.</td></tr>
       </tbody>
     </table></div>
 
     <details>
-      <summary>The right size to ask a designer for</summary>
+      <summary>Logo sizes to ask a designer for</summary>
       <div class="stack">
         <div class="tablewrap"><table>
           <thead><tr><th>Label size</th><th>Ask for</th></tr></thead>
@@ -876,24 +881,25 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
             <tr><td>2 &times; 2&Prime;</td><td class="num-cell">600 &times; 600 pixels</td></tr>
           </tbody>
         </table></div>
-        <p>Bigger is fine &mdash; the tool scales it down cleanly. Smaller is what causes
-          soft edges. Below 150&nbsp;DPI, Transfer Express&rsquo;s printer adds a white
-          jagged line around the artwork.</p>
+        <p>Larger files are fine, since the tool scales them down cleanly. Smaller files
+          print with soft edges, and below 150&nbsp;DPI Transfer Express&rsquo;s printer
+          adds a jagged white line around the artwork.</p>
       </div>
     </details>
 
     <details>
-      <summary>What Transfer Express expects, beyond what the tool can check</summary>
+      <summary>Transfer Express requirements the tool can&rsquo;t check</summary>
       <div class="stack">
         <ul>
-          <li>Lines thinner than <strong>0.018&Prime;</strong> print, but they cannot put
-            adhesive there, so those parts may not last.</li>
-          <li>Soft edges that fade away to nothing will not print. Avoid drop shadows
-            and feathered edges.</li>
-          <li>They print CMYK, which cannot reproduce fluorescent or metallic colours.</li>
-          <li>Set <strong>Remove White</strong> to <strong>Original</strong>. These
-            sheets are already transparent, so the only white it could remove is white
-            inside your logos.</li>
+          <li>Lines thinner than <strong>0.018&Prime;</strong> print, but there&rsquo;s no
+            adhesive under them, so they may not last.</li>
+          <li>Edges that fade out, such as drop shadows and feathering, don&rsquo;t
+            print.</li>
+          <li>They print in CMYK, which can&rsquo;t produce fluorescent or metallic
+            colours.</li>
+          <li>Set <strong>Remove White</strong> to <strong>Original</strong>. The sheets
+            are already transparent, so any white it removed would come out of your
+            logos.</li>
         </ul>
       </div>
     </details>
@@ -902,20 +908,19 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
 
 <section class="band dark">
   <div class="wrap stack">
-    <span class="eyebrow">Staying current</span>
+    <span class="eyebrow">Updates</span>
     <h2>When a new version appears</h2>
-    <p class="lede">A small dark bar appears at the bottom of the window saying
-      <strong>A new version is ready</strong>. There is nothing to download and nothing
-      to install. <a href="#new" style="color:#fff">See what changed &rarr;</a></p>
+    <p class="lede">A dark bar appears at the bottom of the window saying <strong>A new
+      version is ready</strong>. You don&rsquo;t need to download or install anything.
+      <a href="#new" style="color:#fff">See what changed &rarr;</a></p>
     <div class="note go" style="color:var(--ink)">
       <h3>Nothing changes until you click Reload</h3>
-      <p>If you are mid-job, finish it and download your sheets first. The version you
-        are using carries on working exactly as it was. Your logos and settings are not
-        kept across a reload.</p>
+      <p>The version you have open keeps working until then. Reloading clears your
+        logos and settings, so finish and download the job you&rsquo;re on first.</p>
     </div>
-    <p class="lede" style="font-size:.93rem">There is no limit on how many labels a
-      job can have &mdash; it adds sheets as it needs them. The one thing it insists on
-      is a project name before anything will download.</p>
+    <p class="lede" style="font-size:.93rem">There&rsquo;s no limit on how many labels a
+      job can have, and the tool adds sheets as it needs them. You do need a project
+      name before anything will download.</p>
   </div>
 </section>
 </body>
