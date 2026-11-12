@@ -8,7 +8,7 @@
 // asks, which is what keeps an update from swapping the app out mid-job. See
 // static/js/pwa.js for the prompt.
 
-const CACHE = 'heatpress-ad99ad3c49c8';
+const CACHE = 'heatpress-c796861da5e3';
 const ASSETS = [
     'assets/fonts/Arimo-Variable.ttf',
     'assets/fonts/Cousine-Bold.ttf',
@@ -20,6 +20,32 @@ const ASSETS = [
     'assets/fonts/Tinos-Bold.ttf',
     'assets/fonts/Tinos-Regular.ttf',
     'guide-img/app-overview.jpg',
+    'guide-img/clip-sew-1-open-still.jpg',
+    'guide-img/clip-sew-1-open.gif',
+    'guide-img/clip-sew-2-buffer-still.jpg',
+    'guide-img/clip-sew-2-buffer.gif',
+    'guide-img/clip-sew-3-every-still.jpg',
+    'guide-img/clip-sew-3-every.gif',
+    'guide-img/clip-sew-4-save-still.jpg',
+    'guide-img/clip-sew-4-save.gif',
+    'guide-img/clip-start-1-name-still.jpg',
+    'guide-img/clip-start-1-name.gif',
+    'guide-img/clip-start-2-size-still.jpg',
+    'guide-img/clip-start-2-size.gif',
+    'guide-img/clip-start-3-drop-still.jpg',
+    'guide-img/clip-start-3-drop.gif',
+    'guide-img/clip-start-4-qty-still.jpg',
+    'guide-img/clip-start-4-qty.gif',
+    'guide-img/clip-start-5-download-still.jpg',
+    'guide-img/clip-start-5-download.gif',
+    'guide-img/clip-trim-1-open-still.jpg',
+    'guide-img/clip-trim-1-open.gif',
+    'guide-img/clip-trim-2-trim-still.jpg',
+    'guide-img/clip-trim-2-trim.gif',
+    'guide-img/clip-trim-3-readout-still.jpg',
+    'guide-img/clip-trim-3-readout.gif',
+    'guide-img/clip-trim-4-apply-still.jpg',
+    'guide-img/clip-trim-4-apply.gif',
     'guide-img/editor-sewing.jpg',
     'guide-img/editor-trim.jpg',
     'guide-img/half-sheet.jpg',

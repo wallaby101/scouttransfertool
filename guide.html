@@ -19,6 +19,26 @@
   body { margin: 0; }
   img { max-width: 100%; }
   [hidden] { display: none !important; }
+
+/* ---- How-to steps with a looping clip each ---- */
+ol.gsteps { list-style: none; padding: 0; margin: 0; display: grid; gap: 1.6rem; }
+.gstep { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+  gap: 1.2rem; align-items: start; }
+.gstep.wide { grid-template-columns: minmax(0, 1fr); gap: .7rem; }
+.gtext { display: grid; grid-template-columns: 1.75rem 1fr; gap: .8rem; }
+.gtext p { color: var(--ink-soft); font-size: .97rem; margin-top: .15rem; }
+.gnum { width: 1.75rem; height: 1.75rem; border-radius: 50%; display: grid;
+  place-items: center; background: var(--accent); color: #fff; font-weight: 700;
+  font-size: .9rem; }
+.clip { margin: 0; border: 1px solid var(--rule); border-radius: 10px;
+  overflow: hidden; background: var(--card); }
+.clip img { display: block; width: 100%; height: auto; }
+.gstep.wide .clip { margin-left: 2.55rem; }
+@media (max-width: 620px) {
+  .gstep { grid-template-columns: minmax(0, 1fr); gap: .7rem; }
+  .gstep .clip, .gstep.wide .clip { margin-left: 0; }
+  .gstep:not(.wide) .clip { max-width: 340px; }
+}
 </style>
 <title>Transfer Sheet Tool Guide</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@500&display=swap">
@@ -284,6 +304,19 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
       reloads.</p>
     <div>
       <div class="release">
+        <time datetime="2026-11-11">Nov 11, 2026</time>
+        <ul>
+          <li><span class="kind better">Better</span><strong>Clips in the guide.</strong>
+            Three how-tos now show a short looping clip for each step: making a sheet,
+            setting a sewing buffer, and trimming a stray line.
+            <a class="try" href="#start">See it &rarr;</a></li>
+          <li><span class="kind fix">Fixed</span>The download step named only
+            <strong>Download&nbsp;PNG</strong>. A job with more than one sheet shows
+            <strong>Save PNGs to Folder</strong> instead, and the step now says so.
+            <a class="try" href="#start">See it &rarr;</a></li>
+        </ul>
+      </div>
+      <div class="release">
         <time datetime="2026-11-08">Nov 8, 2026</time>
         <ul>
           <li><span class="kind new">New</span><strong>Sewing buffer.</strong> Keeps
@@ -358,30 +391,63 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
   <div class="wrap stack">
     <span class="eyebrow">How to</span>
     <h2>Make a sheet in five steps</h2>
-    <div class="steps">
-      <div class="step"><span class="num">1</span><div>
-        <strong>Type a project name</strong>
-        <p>It&rsquo;s printed small in the sheet margin and used in the file name. The
-          download buttons stay grey until you enter one.</p></div></div>
-      <div class="step"><span class="num">2</span><div>
-        <strong>Pick the logo size</strong>
-        <p>There are four. If you aren&rsquo;t sure, leave it on
-          3&nbsp;&times;&nbsp;3.</p></div></div>
-      <div class="step"><span class="num">3</span><div>
-        <strong>Drag your logo in</strong>
-        <p>Use a PNG with a transparent background if you have one. A JPEG works, but
-          it can&rsquo;t be transparent, so its background prints as a white
-          box.</p></div></div>
-      <div class="step"><span class="num">4</span><div>
-        <strong>Set how many you need</strong>
-        <p>Use &minus; and &plus;, or click the number and type it. The counter
-          underneath shows how many sheets that makes, for example <em>45 labels &mdash;
-          1 full sheet + 1 half sheet</em>.</p></div></div>
-      <div class="step"><span class="num">5</span><div>
-        <strong>Download</strong>
-        <p>When the printer panel is green, click <strong>Download&nbsp;PNG</strong> and
-          send that file.</p></div></div>
-    </div>
+    <ol class="gsteps">
+      <li class="gstep">
+        <div class="gtext"><span class="gnum">1</span><div>
+          <strong>Type a project name</strong>
+          <p>It&rsquo;s printed small in the sheet margin and used in the file name. The download buttons stay grey until you enter one.</p></div></div>
+        <figure class="clip">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-start-1-name-still.jpg">
+            <img src="guide-img/clip-start-1-name.gif" alt="Clicking the Project name box and typing Meridian Spring Run" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+      <li class="gstep">
+        <div class="gtext"><span class="gnum">2</span><div>
+          <strong>Pick the logo size</strong>
+          <p>There are four. If you aren&rsquo;t sure, leave it on 3&nbsp;&times;&nbsp;3.</p></div></div>
+        <figure class="clip">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-start-2-size-still.jpg">
+            <img src="guide-img/clip-start-2-size.gif" alt="Opening the Logo size list, which offers 3 by 3, 3.25 by 1.75, 2.5 by 1.3 and 2 by 2 inches, and leaving it on 3 by 3" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+      <li class="gstep">
+        <div class="gtext"><span class="gnum">3</span><div>
+          <strong>Drag your logo in</strong>
+          <p>Drop the file on the dashed box, or click the box to choose it. Use a PNG with a transparent background if you have one. A JPEG works, but it can&rsquo;t be transparent, so its background prints as a white box.</p></div></div>
+        <figure class="clip">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-start-3-drop-still.jpg">
+            <img src="guide-img/clip-start-3-drop.gif" alt="Dragging a logo file onto the dashed box. The logo appears in a row underneath with a quantity of 1" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+      <li class="gstep">
+        <div class="gtext"><span class="gnum">4</span><div>
+          <strong>Set how many you need</strong>
+          <p>Use &minus; and &plus;, or click the number and type it. The counter underneath shows how many sheets that makes, for example <em>45 labels &mdash; 1 full sheet + 1 half sheet</em>.</p></div></div>
+        <figure class="clip">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-start-4-qty-still.jpg">
+            <img src="guide-img/clip-start-4-qty.gif" alt="Clicking plus twice, then typing 45. The counter changes to 45 labels, 1 full sheet and 1 half sheet" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+      <li class="gstep">
+        <div class="gtext"><span class="gnum">5</span><div>
+          <strong>Download</strong>
+          <p>When the printer panel is green, click the download button. For one sheet it says <strong>Download&nbsp;PNG</strong>. For more than one it says <strong>Save PNGs to Folder</strong> and asks where to put them. Send those files.</p></div></div>
+        <figure class="clip">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-start-5-download-still.jpg">
+            <img src="guide-img/clip-start-5-download.gif" alt="The printer panel with two green checks. Clicking Save PNGs to Folder, then the message Saved 2 sheets to Downloads" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+    </ol>
     <figure>
       <div class="shot">
         <img src="guide-img/app-overview.jpg" alt="The tool with a job loaded: controls down the left, the sheet preview on the right">
@@ -404,16 +470,51 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
     <span class="where-pill">Where: <b>&#9998; editor &rarr; Sewing buffer</b></span>
     <p class="why">When a label is sewn on, the stitching runs through a band just
       inside its edge. A sewing buffer keeps the artwork out of that band.</p>
-    <ol class="do">
-      <li><div>Click <strong>&#9998;</strong> on the logo&rsquo;s row to open the editor.</div></li>
-      <li><div>Under <strong>Sewing buffer</strong>, pick <strong>3&nbsp;mm</strong>,
-        <strong>4&nbsp;mm</strong> or <strong>&frac14;&Prime;</strong>. A magenta line
-        appears that far in from the edge, and the logo shrinks to fit inside
-        it.</div></li>
-      <li><div>If the job has more than one logo, tick <strong>Use on every
-        logo</strong> to give them all the same buffer.</div></li>
-      <li><div>Click <strong>Save</strong>. Each label in the sheet preview now shows
-        its magenta line.</div></li>
+    <ol class="gsteps">
+      <li class="gstep wide">
+        <div class="gtext"><span class="gnum">1</span><div>
+          <strong>Open the editor</strong>
+          <p>Click <strong>&#9998;</strong> on the logo&rsquo;s row.</p></div></div>
+        <figure class="clip wide">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-sew-1-open-still.jpg">
+            <img src="guide-img/clip-sew-1-open.gif" alt="Clicking the pencil button on a logo row opens the Logo Placement editor" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+      <li class="gstep wide">
+        <div class="gtext"><span class="gnum">2</span><div>
+          <strong>Pick a buffer</strong>
+          <p>Under <strong>Sewing buffer</strong>, pick <strong>3&nbsp;mm</strong>, <strong>4&nbsp;mm</strong> or <strong>&frac14;&Prime;</strong>. A magenta line appears that far in from the edge, and the logo shrinks to fit inside it.</p></div></div>
+        <figure class="clip wide">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-sew-2-buffer-still.jpg">
+            <img src="guide-img/clip-sew-2-buffer.gif" alt="Clicking the quarter-inch button. A magenta square appears inside the label and the logo shrinks to fit within it" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+      <li class="gstep wide">
+        <div class="gtext"><span class="gnum">3</span><div>
+          <strong>Use it on every logo, if you want</strong>
+          <p>If the job has more than one logo, tick <strong>Use on every logo</strong> to give them all the same buffer.</p></div></div>
+        <figure class="clip wide">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-sew-3-every-still.jpg">
+            <img src="guide-img/clip-sew-3-every.gif" alt="Ticking Use on every logo" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+      <li class="gstep wide">
+        <div class="gtext"><span class="gnum">4</span><div>
+          <strong>Save</strong>
+          <p>Click <strong>Save</strong>. Each label in the sheet preview now shows its magenta line.</p></div></div>
+        <figure class="clip wide">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-sew-4-save-still.jpg">
+            <img src="guide-img/clip-sew-4-save.gif" alt="Clicking Save. The sheet preview shows a magenta line inside every label, then a close view of three rows of labels" loading="lazy">
+          </picture>
+        </figure>
+      </li>
     </ol>
     <figure>
       <div class="shot"><img src="guide-img/editor-sewing.jpg"
@@ -474,14 +575,51 @@ ol.do > li::before { content: counter(d); width: 1.75rem; height: 1.75rem; borde
       too thin to notice on screen, but it prints on every label. When the tool finds
       one, it puts a yellow note under the logo, such as <em>Thin line along the bottom
       edge</em>.</p>
-    <ol class="do">
-      <li><div>Open the logo&rsquo;s editor with <strong>&#9998;</strong>.</div></li>
-      <li><div>Click <strong>Trim edges</strong>. The tool finds the line or the empty
-        margin and puts a box around the part to keep. To place the box yourself, click
-        <strong>Crop&hellip;</strong> and drag it.</div></li>
-      <li><div>Check the readout under the picture. It gives the printed size and the
-        DPI. Amber means under 270 DPI, and red means under 200.</div></li>
-      <li><div>Click <strong>Apply crop</strong>, then <strong>Save</strong>.</div></li>
+    <ol class="gsteps">
+      <li class="gstep wide">
+        <div class="gtext"><span class="gnum">1</span><div>
+          <strong>Open the editor</strong>
+          <p>Click <strong>&#9998;</strong> on the row with the yellow note.</p></div></div>
+        <figure class="clip wide">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-trim-1-open-still.jpg">
+            <img src="guide-img/clip-trim-1-open.gif" alt="Clicking the pencil button on the row that has a yellow note about a thin line. The editor opens and repeats the note" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+      <li class="gstep wide">
+        <div class="gtext"><span class="gnum">2</span><div>
+          <strong>Click Trim edges</strong>
+          <p>The tool finds the line or the empty margin and puts a box around the part to keep. To place the box yourself, click <strong>Crop&hellip;</strong> and drag it.</p></div></div>
+        <figure class="clip wide">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-trim-2-trim-still.jpg">
+            <img src="guide-img/clip-trim-2-trim.gif" alt="Clicking Trim edges. The crop view opens with a pink box around the logo, leaving out the bottom row" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+      <li class="gstep wide">
+        <div class="gtext"><span class="gnum">3</span><div>
+          <strong>Check the readout</strong>
+          <p>It gives the printed size and the DPI. Amber means under 270 DPI, and red means under 200.</p></div></div>
+        <figure class="clip wide">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-trim-3-readout-still.jpg">
+            <img src="guide-img/clip-trim-3-readout.gif" alt="The readout beside the crop box: keeping 1050 by 565 pixels, 1 removed from the bottom, prints 2.50 by 1.35 inches at 420 DPI" loading="lazy">
+          </picture>
+        </figure>
+      </li>
+      <li class="gstep wide">
+        <div class="gtext"><span class="gnum">4</span><div>
+          <strong>Apply and save</strong>
+          <p>Click <strong>Apply crop</strong>, then <strong>Save</strong>. The yellow note goes away.</p></div></div>
+        <figure class="clip wide">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="guide-img/clip-trim-4-apply-still.jpg">
+            <img src="guide-img/clip-trim-4-apply.gif" alt="Clicking Apply crop, then Save. Back in the main window the yellow note under the logo is gone" loading="lazy">
+          </picture>
+        </figure>
+      </li>
     </ol>
     <figure>
       <div class="shot"><img src="guide-img/editor-trim.jpg"
